@@ -142,7 +142,7 @@ void sendStatus()
 
     lcd.print(2, 1, ":");
 
-    if (offMinute < 10)
+    if (onMinute < 10)
     {
       lcd.print(3, 1, "0");
       lcd.print(4, 1, onMinute);

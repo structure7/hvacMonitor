@@ -1,12 +1,8 @@
 /*
-    v4: Stable! Basic blower motor ON/OFF and status in minutes only.
-    v5: Holy shit I think I've done it and graceful to boot! NEED TO TEST THIS!!!
-    v6: Call Guinness! It works!
-    v7: Added date and fixed for single/double digit time and date.
-    v8: Add additional DS18B20 at house t-stat (CAT5e or extra tstat wire). Add logic for notification/alarm if split temp is too low after X minutes.
-        Might still want to use an acutal RTC to avoid some of the Blynk BS and timezone changes.
-        Sounds like Blynk made a change allowing for RTC time zone. Not sure if that's through the app or the code.
-        Learn to use arrays with strings to clean up the lcd.print madness!
+        Add additional DS18B20 at house t-stat (CAT5e or extra tstat wire).
+        Add logic for notification/alarm if split temp is too low after X minutes.
+        Might still want to use an acutal RTC to avoid potential Blynk server issues, etc.
+        Maybe clean up some of the lcd.print madness.
 */
 
 #include <SimpleTimer.h>
@@ -35,7 +31,7 @@ WidgetLCD lcd(V5);
 WidgetRTC rtc;
 BLYNK_ATTACH_WIDGET(rtc, V8);
 
-int blowerPin = 0;  // Pin connected to 3.3V fed from blower motor.
+int blowerPin = 0;  // 3.3V logic source from blower
 int offHour, offHour24, onHour, onHour24, offMinute, onMinute, offSecond, onSecond, offMonth, onMonth, offDay, onDay;
 
 void setup()
@@ -61,19 +57,12 @@ void setup()
   while (Blynk.connect() == false) {
     // Wait until connected
   }
-
-  // Begin synchronizing time
   rtc.begin();
-
-  // Display digital clock every 10 seconds
   timer.setInterval(10000L, clockDisplay);
-
 }
 
 void clockDisplay()
 {
-  // You can call hour(), minute(), ... at any time
-  // Please see Time library examples for details
   BLYNK_LOG("Current time: %02d:%02d:%02d %02d %02d %d",
             hour(), minute(), second(),
             day(), month(), year());
@@ -93,7 +82,7 @@ void sendTemps()
 
 void sendStatus()
 {
-  if (digitalRead(blowerPin) == HIGH)
+  if (digitalRead(blowerPin) == HIGH) // Runs when blower is OFF
   {
     lcd.clear();
     lcd.print(0, 0, " HVAC OFF since");
@@ -137,6 +126,7 @@ void sendStatus()
       lcd.print(14, 1, offDay);
     }
 
+    // The following records the time the blower started
     onHour24 = hour();
     onHour = hourFormat12();
     onMinute = minute();
@@ -146,8 +136,7 @@ void sendStatus()
   }
   else
   {
-    //Start code for ON state
-    lcd.clear();
+    lcd.clear(); // Runs when blower is ON
     lcd.print(0, 0, " HVAC ON since");
     if (onHour < 10)
     {
@@ -190,6 +179,7 @@ void sendStatus()
       lcd.print(14, 1, onDay);
     }
 
+    // The following records the time the blower stops
     offHour24 = hour();
     offHour = hourFormat12();
     offMinute = minute();
@@ -202,6 +192,5 @@ void sendStatus()
 void loop()
 {
   Blynk.run();
-  timer.run(); //Initiates SimpleTimer
+  timer.run();
 }
-

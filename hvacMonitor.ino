@@ -1,10 +1,3 @@
-/*
-        Add additional DS18B20 at house t-stat (CAT5e or extra tstat wire).
-        Add logic for notification/alarm if split temp is too low after X minutes.
-        Might still want to use an acutal RTC to avoid potential Blynk server issues, etc.
-        Maybe clean up some of the lcd.print madness.
-*/
-
 #include <SimpleTimer.h>
 #define BLYNK_PRINT Serial    // Comment this out to disable prints and save space
 #include <ESP8266WiFi.h>

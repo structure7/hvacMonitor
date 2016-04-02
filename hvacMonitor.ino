@@ -172,7 +172,7 @@ void sendStatus()
       lcd.print(14, 1, onDay);
     }
 
-    // The following records the time the blower stops
+    // The following records the time the blower stopped
     offHour24 = hour();
     offHour = hourFormat12();
     offMinute = minute();

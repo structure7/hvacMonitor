@@ -37,7 +37,7 @@ void setup()
   sensors.setResolution(ds18b20SA, 10);
   sensors.setResolution(ds18b20attic, 10);
 
-  timer.setInterval(2000L, sendTemps); // Temperature sensor polling interval
+  timer.setInterval(5000L, sendTemps); // Temperature sensor polling interval
   timer.setInterval(10000L, sendStatus); // Blower fan status polling interval
 
   while (Blynk.connect() == false) {

@@ -11,9 +11,9 @@
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
-DeviceAddress ds18b2001 = { 0x28, 0x77, 0x8A, 0x1E, 0x00, 0x00, 0x80, 0xD4 }; // Temp test probe
 DeviceAddress ds18b20RA = { 0x28, 0xEF, 0x97, 0x1E, 0x00, 0x00, 0x80, 0x54 }; // Return air probe
 DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; // Supply air probe
+DeviceAddress ds18b20attic = { 0x28, 0xC6, 0x89, 0x1E, 0x00, 0x00, 0x80, 0xAA }; // Attic temperature probe
 
 char auth[] = "getFromBlynkApp";
 
@@ -31,21 +31,14 @@ void setup()
 {
   Serial.begin(9600);
   Blynk.begin(auth, "ssid1", "pw1");
-  //Blynk.begin(auth, "ssid2", "pw2");
-
-  //WiFi.softAP("ssid", "pw");
-  //WiFi.softAPdisconnect(true);
 
   sensors.begin();
-  // Add more of below as more sensors are added. 9, 10, 11, or 12 bits, corresponding to increments of 0.5°C, 0.25°C, 0.125°C, and 0.0625°C, respectively.
-  // Defaults to 12-bit if not set. ~94ms conversion time for 9-bit, to 750ms for 12-bit!
   sensors.setResolution(ds18b20RA, 10);
   sensors.setResolution(ds18b20SA, 10);
-  sensors.setResolution(ds18b2001, 10);
+  sensors.setResolution(ds18b20attic, 10);
 
-  timer.setInterval(1000L, sendTemps); // Temperature sensor polling interval
+  timer.setInterval(3000L, sendTemps); // Temperature sensor polling interval
   timer.setInterval(10000L, sendStatus); // Blower fan status polling interval
-
 
   while (Blynk.connect() == false) {
     // Wait until connected
@@ -66,11 +59,13 @@ void sendTemps()
   sensors.requestTemperatures(); // Polls the sensors
   float tempRA = sensors.getTempF(ds18b20RA);
   float tempSA = sensors.getTempF(ds18b20SA);
-  float tempTEST = sensors.getTempF(ds18b2001);
+  float tempAttic = sensors.getTempF(ds18b20attic);
+  
+  delay(1000);
 
   Blynk.virtualWrite(0, tempRA);
   Blynk.virtualWrite(1, tempSA);
-  Blynk.virtualWrite(2, tempTEST);
+  Blynk.virtualWrite(2, tempAttic);
 }
 
 void sendStatus()

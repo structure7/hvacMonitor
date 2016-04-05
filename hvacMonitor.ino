@@ -1,5 +1,6 @@
 #include <SimpleTimer.h>
 #define BLYNK_PRINT Serial    // Comment this out to disable prints and save space
+//#define BLYNK_DEBUG
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
 #include <OneWire.h>
@@ -15,7 +16,7 @@ DeviceAddress ds18b20RA = { 0x28, 0xEF, 0x97, 0x1E, 0x00, 0x00, 0x80, 0x54 }; //
 DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; // Supply air probe
 DeviceAddress ds18b20attic = { 0x28, 0xC6, 0x89, 0x1E, 0x00, 0x00, 0x80, 0xAA }; // Attic temperature probe
 
-char auth[] = "getFromBlynkApp";
+char auth[] = "fromBlynkApp";
 
 SimpleTimer timer;
 
@@ -27,10 +28,18 @@ BLYNK_ATTACH_WIDGET(rtc, V8);
 int blowerPin = 0;  // 3.3V logic source from blower
 int offHour, offHour24, onHour, onHour24, offMinute, onMinute, offSecond, onSecond, offMonth, onMonth, offDay, onDay;
 
+int xStop = 1;
+int xStart = 1;
+
+unsigned long onNow;
+unsigned long offNow;
+
+int runTime;
+
 void setup()
 {
   Serial.begin(9600);
-  Blynk.begin(auth, "ssid1", "pw1");
+  Blynk.begin(auth, "ssid", "pw");
 
   sensors.begin();
   sensors.setResolution(ds18b20RA, 10);
@@ -52,6 +61,7 @@ void clockDisplay()
   BLYNK_LOG("Current time: %02d:%02d:%02d %02d %02d %d",
             hour(), minute(), second(),
             day(), month(), year());
+
 }
 
 void sendTemps()
@@ -119,6 +129,15 @@ void sendStatus()
     onSecond = second();
     onMonth = month();
     onDay = day();
+
+    if (xStop == 0) // This variable isn't set to zero until the blower runs for the first time after ESP reset.
+    {
+      runTime = ( (offNow - onNow) / 60 );
+      Blynk.tweet(String("A/C off after ") + runTime + " minutes. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      xStop++;
+    }
+    xStart = 0;
+    onNow = now();
   }
   else
   {
@@ -172,8 +191,17 @@ void sendStatus()
     offSecond = second();
     offMonth = month();
     offDay = day();
+
+    if (xStart == 0)
+    {
+      Blynk.tweet(String("A/C on. ") + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      xStart++;
+    }
+    xStop = 0;
+    offNow = now();
   }
 }
+
 
 void loop()
 {

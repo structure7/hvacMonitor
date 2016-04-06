@@ -70,9 +70,10 @@ void sendTemps()
   float tempSA = sensors.getTempF(ds18b20SA);
   float tempAttic = sensors.getTempF(ds18b20attic);
 
+  // DS18B20 library will report a large negative number if a sensor is missing or exactly 185F if there's an error
   if (tempRA >= 0 && tempRA <= 120)
   {
-    Blynk.virtualWrite(0, tempRA); // Original code
+    Blynk.virtualWrite(0, tempRA);
   }
   else
   {
@@ -81,14 +82,14 @@ void sendTemps()
 
   if (tempSA >= 0 && tempSA <= 120)
   {
-    Blynk.virtualWrite(1, tempSA); // Original code
+    Blynk.virtualWrite(1, tempSA);
   }
   else
   {
     Blynk.virtualWrite(1, "ERR");
   }
 
-  if (tempAttic >= 0) // Different than above due to very high attic temps
+  if (tempAttic >= 0 || tempAttic = 185)
   {
     Blynk.virtualWrite(2, tempAttic);
   }

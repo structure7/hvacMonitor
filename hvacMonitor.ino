@@ -32,7 +32,7 @@ int xStop = 1;
 int xStart = 1;
 
 unsigned long onNow;
-unsigned long offNow;
+unsigned long offNow = now(); // To prevent error on first Tweet after blower starts - NOT WORKING YET
 
 int runTime;
 
@@ -61,7 +61,6 @@ void clockDisplay()
   BLYNK_LOG("Current time: %02d:%02d:%02d %02d %02d %d",
             hour(), minute(), second(),
             day(), month(), year());
-
 }
 
 void sendTemps()
@@ -71,9 +70,32 @@ void sendTemps()
   float tempSA = sensors.getTempF(ds18b20SA);
   float tempAttic = sensors.getTempF(ds18b20attic);
 
-  Blynk.virtualWrite(0, tempRA);
-  Blynk.virtualWrite(1, tempSA);
-  Blynk.virtualWrite(2, tempAttic);
+  if (tempRA >= 0 && tempRA <= 120)
+  {
+    Blynk.virtualWrite(0, tempRA); // Original code
+  }
+  else
+  {
+    Blynk.virtualWrite(0, "ERR");
+  }
+
+  if (tempSA >= 0 && tempSA <= 120)
+  {
+    Blynk.virtualWrite(1, tempSA); // Original code
+  }
+  else
+  {
+    Blynk.virtualWrite(1, "ERR");
+  }
+
+  if (tempAttic >= 0) // Different than above due to very high attic temps
+  {
+    Blynk.virtualWrite(2, tempAttic);
+  }
+  else
+  {
+    Blynk.virtualWrite(2, "ERR");
+  }
 }
 
 void sendStatus()
@@ -130,10 +152,10 @@ void sendStatus()
     onMonth = month();
     onDay = day();
 
-    if (xStop == 0) // This variable isn't set to zero until the blower runs for the first time after ESP reset.
+    if (xStop == 0) // This variable isn't set to zero until the blower runs for the first time after ESP reset. LOOK INTO MOVING EVERYTHING ABOVE INTO THIS if TO STOP BLINKING DISPLAY (what happens when app is off?)
     {
       runTime = ( (offNow - onNow) / 60 );
-      Blynk.tweet(String("A/C off after ") + runTime + " minutes. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      Blynk.tweet(String("A/C OFF after running ") + runTime + " minutes. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
       xStop++;
     }
     xStart = 0;
@@ -194,14 +216,14 @@ void sendStatus()
 
     if (xStart == 0)
     {
-      Blynk.tweet(String("A/C on. ") + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      runTime = ( (onNow - offNow) / 60 ); // Still need to make this report 'right' time on first run!
+      Blynk.tweet(String("A/C ON after ") + runTime + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
       xStart++;
     }
     xStop = 0;
     offNow = now();
   }
 }
-
 
 void loop()
 {

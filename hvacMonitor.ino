@@ -1,5 +1,5 @@
 #include <SimpleTimer.h>
-#define BLYNK_PRINT Serial    // Comment this out to disable prints and save space
+//#define BLYNK_PRINT Serial    // Comment this out to disable prints and save space
 //#define BLYNK_DEBUG
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
@@ -14,7 +14,6 @@ DallasTemperature sensors(&oneWire);
 
 DeviceAddress ds18b20RA = { 0x28, 0xEF, 0x97, 0x1E, 0x00, 0x00, 0x80, 0x54 }; // Return air probe
 DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; // Supply air probe
-DeviceAddress ds18b20attic = { 0x28, 0xC6, 0x89, 0x1E, 0x00, 0x00, 0x80, 0xAA }; // Attic temperature probe
 
 char auth[] = "fromBlynkApp";
 
@@ -31,7 +30,7 @@ int offHour, offHour24, onHour, onHour24, offMinute, onMinute, offSecond, onSeco
 int xStop = 1;
 int xStart = 1;
 
-unsigned long onNow;
+unsigned long onNow = now();
 unsigned long offNow = now(); // To prevent error on first Tweet after blower starts - NOT WORKING YET
 
 int runTime;
@@ -44,9 +43,8 @@ void setup()
   sensors.begin();
   sensors.setResolution(ds18b20RA, 10);
   sensors.setResolution(ds18b20SA, 10);
-  sensors.setResolution(ds18b20attic, 10);
 
-  timer.setInterval(5000L, sendTemps); // Temperature sensor polling interval
+  timer.setInterval(4000L, sendTemps); // Temperature sensor polling interval
   timer.setInterval(10000L, sendStatus); // Blower fan status polling interval
 
   while (Blynk.connect() == false) {
@@ -68,34 +66,33 @@ void sendTemps()
   sensors.requestTemperatures(); // Polls the sensors
   float tempRA = sensors.getTempF(ds18b20RA);
   float tempSA = sensors.getTempF(ds18b20SA);
-  float tempAttic = sensors.getTempF(ds18b20attic);
 
-  // DS18B20 library will report a large negative number if a sensor is missing or exactly 185F if there's an error
-  if (tempRA >= 0 && tempRA <= 120)
+  // RETURN AIR - Blower pin logic voltage reversed due to high pull required on ESP8266-01 GPIOs at startup. Done with a BJT.
+  if (tempRA >= 0 && tempRA <= 120 && digitalRead(blowerPin) == LOW) // If temp 0-120F and blower running...
   {
-    Blynk.virtualWrite(0, tempRA);
+    Blynk.virtualWrite(0, tempRA); // ...display the temp...
+  }
+  else if (tempRA >= 0 && tempRA <= 120 && digitalRead(blowerPin) == HIGH) // ...unless it's not running, then...
+  {
+    Blynk.virtualWrite(0, "OFF"); // ...display OFF, unless...
   }
   else
   {
-    Blynk.virtualWrite(0, "ERR");
+    Blynk.virtualWrite(0, "ERR"); // ...there's an error, then display ERR.
   }
 
-  if (tempSA >= 0 && tempSA <= 120)
+  //SUPPLY AIR
+  if (tempSA >= 0 && tempSA <= 120 && digitalRead(blowerPin) == LOW)
   {
     Blynk.virtualWrite(1, tempSA);
+  }
+  else if (tempSA >= 0 && tempSA <= 120 && digitalRead(blowerPin) == HIGH)
+  {
+    Blynk.virtualWrite(1, "OFF");
   }
   else
   {
     Blynk.virtualWrite(1, "ERR");
-  }
-
-  if (tempAttic >= 0 || tempAttic = 185)
-  {
-    Blynk.virtualWrite(2, tempAttic);
-  }
-  else
-  {
-    Blynk.virtualWrite(2, "ERR");
   }
 }
 

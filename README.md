@@ -9,11 +9,10 @@ Hardware is a standalone ESP8266-01 and a few DS18B20 1-Wire digital thermometer
 Title | Include | Link
 ------|---------|-----
 Time | Timelib.h | https://github.com/PaulStoffregen/Time
-* Time (TimeLib.h): https://github.com/PaulStoffregen/Time
-* SimpleTimer (SimpleTimer.f): https://github.com/jfturcot/SimpleTimer
-* ESP8266 (ESP8266WiFi.h): https://github.com/esp8266/Arduino
-* blynk-library (BlynkSimpleEsp8266.h and WidgetRTC.h): https://github.com/blynkkk/blynk-library
-* OneWire (OneWire.h): https://github.com/PaulStoffregen/OneWire
-* Arduino-Temperature-Control-Library (DallasTemperature.h): https://github.com/milesburton/Arduino-Temperature-Control-Library
+SimpleTimer | SimpleTimer.h | https://github.com/jfturcot/SimpleTimer
+ESP8266 | ESP8266WiFi.h | https://github.com/esp8266/Arduino
+blynk-library | BlynkSimpleEsp8266.h, WidgetRTC.h |https://github.com/blynkkk/blynk-library
+OneWire | OneWire.h | https://github.com/PaulStoffregen/OneWire
+Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/milesburton/Arduino-Temperature-Control-Library
 
 Many thanks to all of the people above.

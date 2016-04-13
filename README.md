@@ -6,8 +6,8 @@ Hardware is a standalone ESP8266-01 and a few DS18B20 1-Wire digital thermometer
 
 ## Libraries and Resources
 
-Title | Include | Link
-------|---------|-----
+Title | Include | Link | IDE Incl?
+------|---------|------|----------
 Time | Timelib.h | https://github.com/PaulStoffregen/Time
 SimpleTimer | SimpleTimer.h | https://github.com/jfturcot/SimpleTimer
 ESP8266/Arduino† | ESP8266WiFi.h | https://github.com/esp8266/Arduino

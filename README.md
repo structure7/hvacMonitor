@@ -16,5 +16,4 @@ OneWire | OneWire.h | https://github.com/PaulStoffregen/OneWire
 Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/milesburton/Arduino-Temperature-Control-Library
 † "Comes with" board manager: http://arduino.esp8266.com/stable/package_esp8266com_index.json ([*source*](https://github.com/esp8266/Arduino#installing-with-boards-manager)).
 
-Many thanks to all of the people above.
-Help on future edits: https://guides.github.com/features/mastering-markdown/
+Many thanks to all of the people above. [How to edit this.](https://guides.github.com/features/mastering-markdown/)

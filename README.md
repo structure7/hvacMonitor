@@ -10,8 +10,8 @@ Title | Include | Link | IDE Incl?
 ------|---------|------|----------
 Time | Timelib.h | https://github.com/PaulStoffregen/Time
 SimpleTimer | SimpleTimer.h | https://github.com/jfturcot/SimpleTimer
-ESP8266/Arduino† | ESP8266WiFi.h | https://github.com/esp8266/Arduino
-blynk-library | BlynkSimpleEsp8266.h, WidgetRTC.h |https://github.com/blynkkk/blynk-library
+ESP8266/Arduino† | ESP8266WiFi.h | https://github.com/esp8266/Arduino | No
+blynk-library | BlynkSimpleEsp8266.h, WidgetRTC.h | https://github.com/blynkkk/blynk-library | No
 OneWire | OneWire.h | https://github.com/PaulStoffregen/OneWire
 Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/milesburton/Arduino-Temperature-Control-Library
 † "Comes with" board manager: http://arduino.esp8266.com/stable/package_esp8266com_index.json ([*source*](https://github.com/esp8266/Arduino#installing-with-boards-manager)).

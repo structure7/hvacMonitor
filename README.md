@@ -10,10 +10,11 @@ Title | Include | Link
 ------|---------|-----
 Time | Timelib.h | https://github.com/PaulStoffregen/Time
 SimpleTimer | SimpleTimer.h | https://github.com/jfturcot/SimpleTimer
-ESP8266/Arduino | ESP8266WiFi.h | https://github.com/esp8266/Arduino
+ESP8266/Arduino* | ESP8266WiFi.h | https://github.com/esp8266/Arduino
 blynk-library | BlynkSimpleEsp8266.h, WidgetRTC.h |https://github.com/blynkkk/blynk-library
 OneWire | OneWire.h | https://github.com/PaulStoffregen/OneWire
 Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/milesburton/Arduino-Temperature-Control-Library
+* Uses board manager: http://arduino.esp8266.com/stable/package_esp8266com_index.json
 
 Many thanks to all of the people above.
 Help on future edits: https://guides.github.com/features/mastering-markdown/

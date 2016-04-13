@@ -7,6 +7,7 @@ Hardware is a standalone ESP8266-01 and a few DS18B20 1-Wire digital thermometer
 ## Libraries and Resources
 
 Title | Include | Link
+------|---------|-----
 Time | Timelib.h | https://github.com/PaulStoffregen/Time
 * Time (TimeLib.h): https://github.com/PaulStoffregen/Time
 * SimpleTimer (SimpleTimer.f): https://github.com/jfturcot/SimpleTimer

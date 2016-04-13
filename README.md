@@ -16,3 +16,4 @@ OneWire | OneWire.h | https://github.com/PaulStoffregen/OneWire
 Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/milesburton/Arduino-Temperature-Control-Library
 
 Many thanks to all of the people above.
+Help on future edits: https://guides.github.com/features/mastering-markdown/

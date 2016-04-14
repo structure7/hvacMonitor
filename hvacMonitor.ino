@@ -218,6 +218,23 @@ void sendStatus()
       Blynk.tweet(String("A/C ON after ") + runTime + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
       xStart++;
     }
+    /*
+    {
+      // Create runTimeMin and runTimeHour variables (look at hours floating point)
+      runTimeMin = ( (onNow - offNow) / 60 ); // Still need to make this report 'right' time on first run!
+      runTimeHour = ( runTimeMin / 60 );
+      if (runTimeMin > 120)
+      {
+      Blynk.tweet(String("A/C ON after ") + runTimeHour + " hours of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      xStart++;        
+      }
+      else
+      {
+      Blynk.tweet(String("A/C ON after ") + runTimeMin + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      xStart++;        
+      }
+    }    
+    */
     xStop = 0;
     offNow = now();
   }

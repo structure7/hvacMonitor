@@ -15,7 +15,7 @@ DallasTemperature sensors(&oneWire);
 DeviceAddress ds18b20RA = { 0x28, 0xEF, 0x97, 0x1E, 0x00, 0x00, 0x80, 0x54 }; // Return air probe
 DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; // Supply air probe
 
-char auth[] = "fromBlynkApp";
+char auth[] = "fromBlynkApp *04";
 
 SimpleTimer timer;
 
@@ -44,14 +44,14 @@ void setup()
   sensors.setResolution(ds18b20RA, 10);
   sensors.setResolution(ds18b20SA, 10);
 
-  timer.setInterval(4000L, sendTemps); // Temperature sensor polling interval
-  timer.setInterval(10000L, sendStatus); // Blower fan status polling interval
+  timer.setInterval(2500L, sendTemps); // Temperature sensor polling interval
+  timer.setInterval(2500L, sendLCDstatus); // Blower fan status polling interval
 
   while (Blynk.connect() == false) {
     // Wait until connected
   }
   rtc.begin();
-  timer.setInterval(10000L, clockDisplay);
+  timer.setInterval(10000L, clockDisplay);  // DO I NEED THIS?
 }
 
 void clockDisplay()
@@ -96,11 +96,11 @@ void sendTemps()
   }
 }
 
-void sendStatus()
+void sendLCDstatus()
 {
-  if (digitalRead(blowerPin) == HIGH) // Runs when blower is OFF
+  if (digitalRead(blowerPin) == HIGH) // Runs when blower is OFF.
   {
-    lcd.clear();
+    //lcd.clear();
     lcd.print(0, 0, " HVAC OFF since");
     if (offHour < 10)
     {
@@ -141,28 +141,11 @@ void sendStatus()
       lcd.print(13, 1, "/");
       lcd.print(14, 1, offDay);
     }
-
-    // The following records the time the blower started
-    onHour24 = hour();
-    onHour = hourFormat12();
-    onMinute = minute();
-    onSecond = second();
-    onMonth = month();
-    onDay = day();
-
-    if (xStop == 0) // This variable isn't set to zero until the blower runs for the first time after ESP reset. LOOK INTO MOVING EVERYTHING ABOVE INTO THIS if TO STOP BLINKING DISPLAY (what happens when app is off?)
-    {
-      runTime = ( (offNow - onNow) / 60 );
-      Blynk.tweet(String("A/C OFF after running ") + runTime + " minutes. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
-      xStop++;
-    }
-    xStart = 0;
-    onNow = now();
   }
   else
   {
-    lcd.clear(); // Runs when blower is ON
-    lcd.print(0, 0, " HVAC ON since");
+    //lcd.clear(); // Runs when blower is ON.
+    lcd.print(0, 0, " HVAC ON since ");
     if (onHour < 10)
     {
       lcd.print(1, 1, onHour);
@@ -203,7 +186,52 @@ void sendStatus()
       lcd.print(13, 1, "/");
       lcd.print(14, 1, onDay);
     }
+    /*
+    {
+      // Create runTimeMin and runTimeHour variables (look at hours floating point)
+      runTimeMin = ( (onNow - offNow) / 60 ); // Still need to make this report 'right' time on first run!
+      runTimeHour = ( runTimeMin / 60 );
+      if (runTimeMin > 120)
+      {
+      Blynk.tweet(String("A/C ON after ") + runTimeHour + " hours of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      xStart++;
+      }
+      else
+      {
+      Blynk.tweet(String("A/C ON after ") + runTimeMin + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      xStart++;
+      }
+    }
+    */
+  }
+}
 
+void loop()
+{
+  Blynk.run();
+  timer.run();
+
+  if (digitalRead(blowerPin) == HIGH) // Runs when blower is OFF.
+  {
+    // The following records the time the blower started
+    onHour24 = hour();
+    onHour = hourFormat12();
+    onMinute = minute();
+    onSecond = second();
+    onMonth = month();
+    onDay = day();
+
+    if (xStop == 0) // This variable isn't set to zero until the blower runs for the first time after ESP reset.
+    {
+      runTime = ( (offNow - onNow) / 60 );
+      Blynk.tweet(String("A/C OFF after running ") + runTime + " minutes. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      xStop++;
+    }
+    xStart = 0;
+    onNow = now();
+  }
+  else
+  {
     // The following records the time the blower stopped
     offHour24 = hour();
     offHour = hourFormat12();
@@ -218,30 +246,7 @@ void sendStatus()
       Blynk.tweet(String("A/C ON after ") + runTime + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
       xStart++;
     }
-    /*
-    {
-      // Create runTimeMin and runTimeHour variables (look at hours floating point)
-      runTimeMin = ( (onNow - offNow) / 60 ); // Still need to make this report 'right' time on first run!
-      runTimeHour = ( runTimeMin / 60 );
-      if (runTimeMin > 120)
-      {
-      Blynk.tweet(String("A/C ON after ") + runTimeHour + " hours of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
-      xStart++;        
-      }
-      else
-      {
-      Blynk.tweet(String("A/C ON after ") + runTimeMin + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
-      xStart++;        
-      }
-    }    
-    */
     xStop = 0;
     offNow = now();
   }
-}
-
-void loop()
-{
-  Blynk.run();
-  timer.run();
 }

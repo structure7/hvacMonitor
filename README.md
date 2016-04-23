@@ -9,7 +9,7 @@ Hardware is a standalone ESP8266-01 and a few DS18B20 1-Wire digital thermometer
 Title | Include | Link | w/ IDE?
 ------|---------|------|----------
 Time | Timelib.h | https://github.com/PaulStoffregen/Time
-SimpleTimer | SimpleTimer.h | https://github.com/jfturcot/SimpleTimer
+SimpleTimer | SimpleTimer.h | https://github.com/jfturcot/SimpleTimer | No
 ESP8266/Arduino | ESP8266WiFi.h | https://github.com/esp8266/Arduino | No
 blynk-library | BlynkSimpleEsp8266.h, WidgetRTC.h | https://github.com/blynkkk/blynk-library | No
 OneWire | OneWire.h | https://github.com/PaulStoffregen/OneWire

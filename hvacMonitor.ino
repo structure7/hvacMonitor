@@ -19,6 +19,8 @@ char auth[] = "fromBlynkApp *04";
 
 SimpleTimer timer;
 
+WidgetLED led1(V2);
+
 WidgetLCD lcd(V5);
 
 WidgetRTC rtc;
@@ -46,6 +48,7 @@ void setup()
 
   timer.setInterval(2500L, sendTemps); // Temperature sensor polling interval
   timer.setInterval(2500L, sendLCDstatus); // Blower fan status polling interval
+  timer.setInterval(5000L, sendHeartbeat); // Blinks Blynk LED to reflect online status
 
   while (Blynk.connect() == false) {
     // Wait until connected
@@ -94,6 +97,7 @@ void sendTemps()
   {
     Blynk.virtualWrite(1, "ERR");
   }
+  led1.off();
 }
 
 void sendLCDstatus()
@@ -101,10 +105,10 @@ void sendLCDstatus()
   if (digitalRead(blowerPin) == HIGH) // Runs when blower is OFF.
   {
     //lcd.clear();
-    lcd.print(0, 0, " HVAC OFF since");
+    lcd.print(0, 0, " HVAC OFF since  ");
     if (offHour < 10)
     {
-      lcd.print(1, 1, offHour);
+      lcd.print(0, 1, String(" ") + offHour); // Since lcd.clear() is not used, this space overwrites old data.
     }
     else
     {
@@ -129,23 +133,24 @@ void sendLCDstatus()
     {
       lcd.print(5, 1, "PM on");
     }
+
     if (offMonth < 10)
     {
       lcd.print(11, 1, offMonth);
       lcd.print(12, 1, "/");
-      lcd.print(13, 1, offDay);
+      lcd.print(13, 1, offDay + String("  ")); // Since lcd.clear() is not used, this space overwrites old data.
     }
     else
     {
       lcd.print(11, 1, offMonth);
       lcd.print(13, 1, "/");
-      lcd.print(14, 1, offDay);
+      lcd.print(14, 1, offDay + String("  ")); // Since lcd.clear() is not used, this space overwrites old data.
     }
   }
   else
   {
     //lcd.clear(); // Runs when blower is ON.
-    lcd.print(0, 0, " HVAC ON since ");
+    lcd.print(0, 0, "  HVAC ON since  ");
     if (onHour < 10)
     {
       lcd.print(1, 1, onHour);
@@ -204,6 +209,11 @@ void sendLCDstatus()
     }
     */
   }
+}
+
+void sendHeartbeat()
+{
+  led1.on();
 }
 
 void loop()

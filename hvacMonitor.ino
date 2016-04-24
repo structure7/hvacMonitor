@@ -53,17 +53,7 @@ void setup()
     // Wait until connected
   }
   rtc.begin();
-  //timer.setInterval(10000L, clockDisplay);  // DO I NEED THIS?
 }
-
-/*
-void clockDisplay()  // DO I NEED THIS?
-{
-  BLYNK_LOG("Current time: %02d:%02d:%02d %02d %02d %d",
-            hour(), minute(), second(),
-            day(), month(), year());
-}
-*/
 
 void sendTemps()
 {
@@ -153,6 +143,7 @@ void sendLCDstatus()
   {
     //lcd.clear(); // Runs when blower is ON.
     lcd.print(0, 0, "  HVAC ON since  ");
+    
     if (onHour < 10)
     {
       lcd.print(1, 1, onHour);

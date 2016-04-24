@@ -19,7 +19,7 @@ Many thanks to all of the people above. [How to edit this.](https://guides.githu
 
 ## Testimonials
 From `friend`:
-> Huh. Kinda cool.
+> That's slick, dude.
 
 From `kids`:
 > What is that?

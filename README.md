@@ -16,3 +16,13 @@ Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/m
 ESP8266 board mgr | N/A | [json](http://arduino.esp8266.com/stable/package_esp8266com_index.json) & [instructions](https://github.com/esp8266/Arduino#installing-with-boards-manager) | No
 
 Many thanks to all of the people above. [How to edit this.](https://guides.github.com/features/mastering-markdown/)
+
+## Testimonials
+From `friend`
+> That looks pretty cool
+
+From `kids`
+> What is that?
+
+From `wife`
+> That's nice, honey.

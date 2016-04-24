@@ -18,11 +18,11 @@ ESP8266 board mgr | N/A | [json](http://arduino.esp8266.com/stable/package_esp82
 Many thanks to all of the people above. [How to edit this.](https://guides.github.com/features/mastering-markdown/)
 
 ## Testimonials
-From `friend`
-> That looks pretty cool
+From `friend`:
+> Huh. Kinda cool.
 
-From `kids`
+From `kids`:
 > What is that?
 
-From `wife`
+From `wife`:
 > That's nice, honey.

@@ -20,22 +20,21 @@ char auth[] = "fromBlynkApp *04";
 SimpleTimer timer;
 
 WidgetLED led1(V2);
-
 WidgetLCD lcd(V5);
-
 WidgetRTC rtc;
 BLYNK_ATTACH_WIDGET(rtc, V8);
 
 int blowerPin = 0;  // 3.3V logic source from blower
-int offHour, offHour24, onHour, onHour24, offMinute, onMinute, offSecond, onSecond, offMonth, onMonth, offDay, onDay;
-
 int xStop = 1;
 int xStart = 1;
+int alarmTrigger = 0;
+int alarmFor = 0;
 
 unsigned long onNow = now();
 unsigned long offNow = now(); // To prevent error on first Tweet after blower starts - NOT WORKING YET
 
-int runTime;
+int offHour, offHour24, onHour, onHour24, offMinute, onMinute, offSecond, onSecond, offMonth, onMonth, 
+offDay, onDay,runTime, tempSplit, secondsCount, alarmTime;
 
 void setup()
 {
@@ -54,21 +53,24 @@ void setup()
     // Wait until connected
   }
   rtc.begin();
-  timer.setInterval(10000L, clockDisplay);  // DO I NEED THIS?
+  //timer.setInterval(10000L, clockDisplay);  // DO I NEED THIS?
 }
 
-void clockDisplay()
+/*
+void clockDisplay()  // DO I NEED THIS?
 {
   BLYNK_LOG("Current time: %02d:%02d:%02d %02d %02d %d",
             hour(), minute(), second(),
             day(), month(), year());
 }
+*/
 
 void sendTemps()
 {
   sensors.requestTemperatures(); // Polls the sensors
   float tempRA = sensors.getTempF(ds18b20RA);
   float tempSA = sensors.getTempF(ds18b20SA);
+  tempSplit = tempRA - tempSA;
 
   // RETURN AIR - Blower pin logic voltage reversed due to high pull required on ESP8266-01 GPIOs at startup. Done with a BJT.
   if (tempRA >= 0 && tempRA <= 120 && digitalRead(blowerPin) == LOW) // If temp 0-120F and blower running...
@@ -97,7 +99,7 @@ void sendTemps()
   {
     Blynk.virtualWrite(1, "ERR");
   }
-  led1.off();
+  led1.off();  // The OFF portion of the LED heartbeat indicator in the Blynk app
 }
 
 void sendLCDstatus()
@@ -213,10 +215,10 @@ void sendLCDstatus()
 
 void sendHeartbeat()
 {
-  led1.on();
+  led1.on(); // The ON portion of the LED heartbeat indicator in the Blynk app
 }
 
-void loop()
+void loop() // Typically Blynk tasks should not be placed in void loop(), however these don't run continuously for any reason.
 {
   Blynk.run();
   timer.run();
@@ -258,5 +260,34 @@ void loop()
     }
     xStop = 0;
     offNow = now();
+  }
+
+  if (digitalRead(blowerPin) == LOW) // Blower is running.
+  {
+    secondsCount = (millis() / 1000); // Start the clock that the alarm will reference.
+    if (tempSplit > 15) // > 15F is an acceptable split for alarm purposes (usually 20F in real life).
+    {
+      alarmFor = 0; // Resets alarm counting "latch."
+      alarmTime = 0; // Resets 120s alarm.
+    }
+    else
+    {
+      if (alarmFor == 0)
+      {
+        alarmTime = secondsCount + 120; // This sets the 120s alarm (from split out of spec to notification being sent)
+        alarmFor++; // Locks out alarm clock reset until alarmFor == 0.
+      }
+    }
+    if (tempSplit <= 15 && secondsCount > alarmTime && alarmFor == 1)
+    {
+      Blynk.tweet(String("Low split (") + tempSplit + "°F) " + "recorded at " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      Blynk.notify(String("Low HVAC split: ") + tempSplit + "°F");
+      alarmFor = 5; // Arbitrary value indicating notification sent and locking out repetitive notifications.
+    }
+  }
+  else
+  {
+    alarmFor = 0; // Resets alarm counting "latch."
+    alarmTime = 0; // Resets 120s alarm.
   }
 }

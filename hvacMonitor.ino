@@ -10,14 +10,13 @@
 #define ONE_WIRE_BUS 2
 #include <ArduinoJson.h>
 
-
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
 DeviceAddress ds18b20RA = { 0x28, 0xEF, 0x97, 0x1E, 0x00, 0x00, 0x80, 0x54 }; // Return air probe
 DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; // Supply air probe
 
-char auth[] = "fromBlynkApp";
+char auth[] = "ed06ade587fc4dfea91fb114e08f2104";
 
 SimpleTimer timer;
 
@@ -31,7 +30,7 @@ SimpleTimer timer;
 // HTTP request
 const char WUNDERGROUND_REQ[] =
   //"GET /test.json HTTP/1.1\r\n"  // Keep for test/debug
-  "GET /api/[myAPIkey]/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n"
+  "GET /api/a76b5f288962f088/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n"
   "User-Agent: ESP8266/0.1\r\n"
   "Accept: */*\r\n"
   "Host: " WUNDERGROUND "\r\n"
@@ -41,7 +40,8 @@ const char WUNDERGROUND_REQ[] =
 float temp_f;
 
 WidgetLED led1(V2);
-WidgetLCD lcd(V5);
+WidgetLCD lcd(V5); // Display LCD
+WidgetLCD lcd1(V13); // Diagnostic LCD
 WidgetRTC rtc;
 BLYNK_ATTACH_WIDGET(rtc, V8);
 
@@ -57,10 +57,17 @@ unsigned long offNow = now(); // To prevent error on first Tweet after blower st
 int offHour, offHour24, onHour, onHour24, offMinute, onMinute, offSecond, onSecond, offMonth, onMonth,
     offDay, onDay, runTime, tempSplit, secondsCount, alarmTime;
 
+int currentRuntimeSec; // Blower runtime today in seconds
+int currentRuntimeMin; // Blower runtime today in minutes
+int yesterdayRuntime; // Yesterday's blower runtime in minutes
+
+int dayCountLatch = 0;
+int todaysDate, yesterdaysDate;
+
 void setup()
 {
   Serial.begin(9600);
-  Blynk.begin(auth, "ssid", "pw");
+  Blynk.begin(auth, "0", "keatonhowardkemper2056");
 
   sensors.begin();
   sensors.setResolution(ds18b20RA, 10);
@@ -76,8 +83,7 @@ void setup()
   timer.setInterval(5000L, sendHeartbeat); // Blinks Blynk LED to reflect online status
   timer.setInterval(300000L, sendWU); // 5 minutes between Wunderground API calls.
   timer.setInterval(90000L, sendWUtoBlynk); // 1.5 minutes between API data updates to Blynk.
-
-   static char respBuf[4096];
+  timer.setInterval(1000L, countRuntime);  // Counts blower runtime in seconds for daily accumulation display in diagnostics.
 }
 
 static char respBuf[4096];
@@ -86,7 +92,7 @@ bool showWeather(char *json);
 
 void sendWUtoBlynk()
 {
-    Blynk.virtualWrite(12, temp_f);
+  Blynk.virtualWrite(12, temp_f);
 }
 
 void sendWU()
@@ -95,7 +101,7 @@ void sendWU()
   Serial.print(F("Connecting to "));
   Serial.println(WUNDERGROUND);
 
-  // Use WiFiClient class to create TCP connections (A LITTLE WORRIED HOW THIS WILL WORK WITH BLYNK)
+  // Use WiFiClient class to create TCP connections
   WiFiClient httpclient;
   const int httpPort = 80;
   if (!httpclient.connect(WUNDERGROUND, httpPort)) {
@@ -152,8 +158,7 @@ void sendWU()
   Serial.println(respLen);
   //Serial.println(respBuf);
 
-
-// This part will be removed in favor of the timer feature. Probably remove delay_error and just report ERR.
+  // Kept this because I haven't quite figured out how to keep ESP from crashing without it.
   if (showWeather(respBuf)) {
     delay(DELAY_NORMAL);
   }
@@ -165,7 +170,7 @@ void sendWU()
 
 bool showWeather(char *json)
 {
-  StaticJsonBuffer<3*1024> jsonBuffer;
+  StaticJsonBuffer<3 * 1024> jsonBuffer;
 
   // Skip characters until first '{' found
   // Ignore chunked length, if present
@@ -341,19 +346,19 @@ void sendLCDstatus()
   }
 }
 
-void sendHeartbeat()
+void sendHeartbeat()  // Blinks a virtual LED in the Blynk app to show the ESP is live and reporting.
 {
-  led1.on(); // The ON portion of the LED heartbeat indicator in the Blynk app
+  led1.on();
 }
 
-void loop() // Typically Blynk tasks should not be placed in void loop(), however these don't run continuously for any reason.
+void loop() // Typically Blynk tasks should not be placed in void loop(), however none of these (Blynk) tasks run continuously for any reason.
 {
   Blynk.run();
   timer.run();
 
   if (digitalRead(blowerPin) == HIGH) // Runs when blower is OFF.
   {
-    // The following records the time the blower started
+    // The following records the time the blower started to send to the main LCD.
     onHour24 = hour();
     onHour = hourFormat12();
     onMinute = minute();
@@ -372,7 +377,7 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
   }
   else
   {
-    // The following records the time the blower stopped
+    // The following records the time the blower stopped to send to the main LCD.
     offHour24 = hour();
     offHour = hourFormat12();
     offMinute = minute();
@@ -390,6 +395,7 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
     offNow = now();
   }
 
+  // Does the timing for the RA/SA split temperature alarm/notification.
   if (digitalRead(blowerPin) == LOW) // Blower is running.
   {
     secondsCount = (millis() / 1000); // Start the clock that the alarm will reference.
@@ -418,4 +424,62 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
     alarmFor = 0; // Resets alarm counting "latch."
     alarmTime = 0; // Resets 120s alarm.
   }
+}
+
+void countRuntime()  // Maybe add a midnight Tweet (or replace status) of the day's runtime (timstamped, of course)
+{
+  
+  // Sets the date once after reset/boot up, or when the date actually changes.
+  if (dayCountLatch == 0)
+  {
+    todaysDate = day();  // Minute for testing. Day for production.
+    dayCountLatch++;
+  }
+
+  // Runs the blower timer when it's on. *** MIGHT STEAL THIS CODE RUN/OFF LCD DISPLAY.
+  if (digitalRead(blowerPin) == LOW && todaysDate == day())
+  {
+    currentRuntimeSec++;
+  }
+  // Resets the timer on the next day if the blower is running.
+   else if (digitalRead(blowerPin) == LOW && todaysDate != day())
+  {
+    yesterdayRuntime = currentRuntimeMin; // Moves today's runtime to yesterday.
+    dayCountLatch = 0; // Allows today's date to be reset.
+    currentRuntimeSec = 0; // Resets today's timer.
+    lcd1.clear();
+  }
+  // Resets the timer on the next day if the blower isn't running!
+  else if (digitalRead(blowerPin) == HIGH && todaysDate != day())
+  {
+    yesterdayRuntime = currentRuntimeMin;
+    dayCountLatch = 0;
+    currentRuntimeSec = 0;
+    lcd1.clear();
+  }
+
+  // This makes sure the right numberical date for yesterday is shown for the first of any month.
+  if (day() == 1)
+  {
+    if (month() == 3) // The date before 3/1 is 29 (2/29), and so on below.
+    {
+      yesterdaysDate = 29;
+    }
+    else if (month() == 5 || month() == 7 || month() == 10 || month() == 12)
+    {
+      yesterdaysDate = 30;
+    }
+    else if (month() == 1 || month() == 2 || month() == 4 || month() == 6 || month() == 8 || month() == 9 || month() == 11)
+    {
+      yesterdaysDate = 31;
+    }
+  }
+  else
+  {
+    yesterdaysDate = day() - 1; // Subtracts 1 day to get to yesteray unless it's the first of the month (see above)
+  }
+
+  currentRuntimeMin = (currentRuntimeSec / 60);
+  lcd1.print(0, 0, String(month()) + "/" + yesterdaysDate + ": " + yesterdayRuntime + " min");  // Prints yesterday's accumulated runtime. 
+  lcd1.print(0, 1, String("Today: ") + currentRuntimeMin + " min");  // Prints today's accumulated runtime.
 }

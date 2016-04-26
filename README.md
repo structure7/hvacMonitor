@@ -4,8 +4,11 @@ A small project to simply monitor my HVAC system. I do not currently have plans 
 Hardware is a standalone ESP8266-01 and a few DS18B20 1-Wire digital thermometers. ESP8266-01 may be replaced by a larger Pro Mini or ESP-12E as bells and whistles increase.
 
 ## Features
- * Monitoring of the air temperature coming into my HVAC unit (return air) and temperature of air after it's cooled (supply air), including a Blynk notification of the unit isn't cooling enough.
- * JSON parsing of Weather Undergrounds's API to bring the temperature of a neighbor's <a href="https://www.wunderground.com/personal-weather-station/dashboard?ID=KAZTEMPE29">PWS</a> to my Blynk project.
+ * Arduino code running on a single ESP-8266 (the little ESP-01 module).
+ * Monitoring of the air temperature coming into my HVAC unit (return air) and temperature of air after it's cooled (supply air), including a Blynk notification of the unit isn't cooling enough. All temperature sensors are <a href="https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf">Maxim/Dallas DS18B20</a>... a mix of probe-style and bare TO-92 package sensors.
+ * Monitoring of HVAC run status. This is done by tapping the 120V supply to a blower motor with a standard phone charger (120VAC to 5VDC), then using a Fairchild 2N3904 NPN Small Signal TO-92 Transistor to reverse the logic from 5V to GND (required as the ESP8266 GPIO I'm using seems to pull itself high on boot and stays highs. If I pull it low the ESP8266 will not boot). A Blynk virtual LCD displays if the HVAC is on or off, and how long it's been on or off. The the unit starts or stops, a timestamped notification is sent to Twitter (using Blynk app).
+ * JSON parsing of Weather Undergrounds's API to bring the temperature of a neighbor's <a href="https://www.wunderground.com/personal-weather-station/dashboard?ID=KAZTEMPE29">PWS</a> to my Blynk project. Plan to add a notification when outdoor temp equals indoor temp so I know I can open the doors and windows!
+ 
 
 ## Libraries and Resources
 

@@ -16,7 +16,7 @@ DallasTemperature sensors(&oneWire);
 DeviceAddress ds18b20RA = { 0x28, 0xEF, 0x97, 0x1E, 0x00, 0x00, 0x80, 0x54 }; // Return air probe
 DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; // Supply air probe
 
-char auth[] = "ed06ade587fc4dfea91fb114e08f2104";
+char auth[] = "fromBlynkApp";
 
 SimpleTimer timer;
 
@@ -30,7 +30,7 @@ SimpleTimer timer;
 // HTTP request
 const char WUNDERGROUND_REQ[] =
   //"GET /test.json HTTP/1.1\r\n"  // Keep for test/debug
-  "GET /api/a76b5f288962f088/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n"
+  "GET /api/[myApiKey]/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n"
   "User-Agent: ESP8266/0.1\r\n"
   "Accept: */*\r\n"
   "Host: " WUNDERGROUND "\r\n"
@@ -67,7 +67,7 @@ int todaysDate, yesterdaysDate;
 void setup()
 {
   Serial.begin(9600);
-  Blynk.begin(auth, "0", "keatonhowardkemper2056");
+  Blynk.begin(auth, "ssid", "pw");
 
   sensors.begin();
   sensors.setResolution(ds18b20RA, 10);

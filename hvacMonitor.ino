@@ -5,7 +5,7 @@
 #include <BlynkSimpleEsp8266.h>
 #include <OneWire.h>
 #include <DallasTemperature.h>
-#include <TimeLib.h> //Can this go away?
+#include <TimeLib.h> // Used by WidgetRTC.h
 #include <WidgetRTC.h>
 #define ONE_WIRE_BUS 2
 #include <ArduinoJson.h>

@@ -30,7 +30,7 @@ SimpleTimer timer;
 // HTTP request
 const char WUNDERGROUND_REQ[] =
   //"GET /test.json HTTP/1.1\r\n"  // Keep for test/debug
-  "GET /api/[myApiKey]/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n"
+  "GET /api/[myApiKey]]/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n"
   "User-Agent: ESP8266/0.1\r\n"
   "Accept: */*\r\n"
   "Host: " WUNDERGROUND "\r\n"
@@ -288,7 +288,7 @@ void sendLCDstatus()
 
     if (onHour < 10)
     {
-      lcd.print(1, 1, onHour);
+      lcd.print(0, 1, String(" ") + onHour); // Since lcd.clear() is not used, this space overwrites old data.
     }
     else
     {
@@ -318,13 +318,13 @@ void sendLCDstatus()
     {
       lcd.print(11, 1, onMonth);
       lcd.print(12, 1, "/");
-      lcd.print(13, 1, onDay);
+      lcd.print(13, 1, onDay + String("  ")); // Since lcd.clear() is not used, this space overwrites old data.
     }
     else
     {
       lcd.print(11, 1, onMonth);
       lcd.print(13, 1, "/");
-      lcd.print(14, 1, onDay);
+      lcd.print(14, 1, onDay + String("  ")); // Since lcd.clear() is not used, this space overwrites old data.;
     }
     /*
     {
@@ -369,7 +369,7 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
     if (xStop == 0) // This variable isn't set to zero until the blower runs for the first time after ESP reset.
     {
       runTime = ( (offNow - onNow) / 60 );
-      Blynk.tweet(String("A/C OFF after running ") + runTime + " minutes. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      //Blynk.tweet(String("A/C OFF after running ") + runTime + " minutes. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
       xStop++;
     }
     xStart = 0;
@@ -388,7 +388,7 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
     if (xStart == 0)
     {
       runTime = ( (onNow - offNow) / 60 ); // Still need to make this report 'right' time on first run!
-      Blynk.tweet(String("A/C ON after ") + runTime + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+      //Blynk.tweet(String("A/C ON after ") + runTime + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
       xStart++;
     }
     xStop = 0;
@@ -444,21 +444,25 @@ void countRuntime()  // Maybe add a midnight Tweet (or replace status) of the da
   // Resets the timer on the next day if the blower is running.
    else if (digitalRead(blowerPin) == LOW && todaysDate != day())
   {
+    Blynk.tweet(String("On ") + month() + "/" + day() + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
     yesterdayRuntime = currentRuntimeMin; // Moves today's runtime to yesterday.
     dayCountLatch = 0; // Allows today's date to be reset.
-    currentRuntimeSec = 0; // Resets today's timer.
+    currentRuntimeSec = 0; // Reset today's sec timer.
+    currentRuntimeMin = 0; // Reset today's min timer.
     lcd1.clear();
   }
   // Resets the timer on the next day if the blower isn't running!
   else if (digitalRead(blowerPin) == HIGH && todaysDate != day())
   {
+    Blynk.tweet(String("On ") + month() + "/" + day() + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
     yesterdayRuntime = currentRuntimeMin;
     dayCountLatch = 0;
     currentRuntimeSec = 0;
+    currentRuntimeMin = 0;
     lcd1.clear();
   }
 
-  // This makes sure the right numberical date for yesterday is shown for the first of any month.
+  // This makes sure the right numerical date for yesterday is shown for the first of any month.
   if (day() == 1)
   {
     if (month() == 3) // The date before 3/1 is 29 (2/29), and so on below.
@@ -476,7 +480,7 @@ void countRuntime()  // Maybe add a midnight Tweet (or replace status) of the da
   }
   else
   {
-    yesterdaysDate = day() - 1; // Subtracts 1 day to get to yesteray unless it's the first of the month (see above)
+    yesterdaysDate = day() - 1; // Subtracts 1 day to get to yesterday unless it's the first of the month (see above)
   }
 
   currentRuntimeMin = (currentRuntimeSec / 60);

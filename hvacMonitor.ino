@@ -30,7 +30,7 @@ SimpleTimer timer;
 // HTTP request
 const char WUNDERGROUND_REQ[] =
   //"GET /test.json HTTP/1.1\r\n"  // Keep for test/debug
-  "GET /api/[myApiKey]]/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n"
+  "GET /api/myAPIkey/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n"
   "User-Agent: ESP8266/0.1\r\n"
   "Accept: */*\r\n"
   "Host: " WUNDERGROUND "\r\n"
@@ -44,12 +44,15 @@ WidgetLCD lcd(V5); // Display LCD
 WidgetLCD lcd1(V13); // Diagnostic LCD
 WidgetRTC rtc;
 BLYNK_ATTACH_WIDGET(rtc, V8);
+WidgetTerminal terminal(V15);
 
 int blowerPin = 0;  // 3.3V logic source from blower
 int xStop = 1;
 int xStart = 1;
 int alarmTrigger = 0;
 int alarmFor = 0;
+int xFirstRun = 0;
+
 
 unsigned long onNow = now();
 unsigned long offNow = now(); // To prevent error on first Tweet after blower starts - NOT WORKING YET
@@ -77,12 +80,32 @@ void setup()
     // Wait until connected
   }
   rtc.begin();
+  delay(5000); // Allow RTC to fully start
+
+  terminal.println(" ");
+  if (minute() < 10 && second() > 9)
+  {
+    terminal.println(String(hour()) + ":" + "0" + minute() + ":" + second() + " SYSTEM RESET");
+  }
+  else if (second() < 10 && minute() > 9)
+  {
+    terminal.println(String(hour()) + ":" + minute() + ":" + "0" + second() + " SYSTEM RESET");
+  }
+  else if (second() < 10 && minute() < 10)
+  {
+    terminal.println(String(hour()) + ":" + "0" + minute() + ":" + "0" + second() + " SYSTEM RESET");
+  }
+  else
+  {
+    terminal.println(String(hour()) + ":" + minute() + ":" + second() + " SYSTEM RESET");
+  }
+  terminal.flush();
 
   timer.setInterval(2500L, sendTemps); // Temperature sensor polling interval
   timer.setInterval(2500L, sendLCDstatus); // Blower fan status polling interval
   timer.setInterval(5000L, sendHeartbeat); // Blinks Blynk LED to reflect online status
   timer.setInterval(300000L, sendWU); // 5 minutes between Wunderground API calls.
-  timer.setInterval(90000L, sendWUtoBlynk); // 1.5 minutes between API data updates to Blynk.
+  timer.setInterval(330000L, sendWUtoBlynk); // 5ish minutes between API data updates to Blynk.
   timer.setInterval(1000L, countRuntime);  // Counts blower runtime in seconds for daily accumulation display in diagnostics.
 }
 
@@ -92,7 +115,16 @@ bool showWeather(char *json);
 
 void sendWUtoBlynk()
 {
-  Blynk.virtualWrite(12, temp_f);
+  // Intended to screen out errors from Wunderground API
+  if (temp_f > 10)
+  {
+    Blynk.virtualWrite(12, temp_f);
+  }
+  else
+  {
+    Blynk.virtualWrite(12, "ERR");
+    Blynk.tweet(String("WU API error reporting a temp value of ") + temp_f + " at " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+  }
 }
 
 void sendWU()
@@ -192,7 +224,7 @@ bool showWeather(char *json)
   // Extract weather info from parsed JSON
   JsonObject& current = root["current_observation"];
   temp_f = current["temp_f"];  // Was `const float temp_f = current["temp_f"];`
-  Serial.print(temp_f, 1); Serial.print(F(" F "));
+  //Serial.print(temp_f, 1); Serial.print(F(" F "));
 
   return true;
 }
@@ -369,6 +401,23 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
     if (xStop == 0) // This variable isn't set to zero until the blower runs for the first time after ESP reset.
     {
       runTime = ( (offNow - onNow) / 60 );
+      if (minute() < 10 && second() > 9)
+      {
+        terminal.println(String(hour()) + ":" + "0" + minute() + ":" + second() + " A/C OFF after " + runTime + " min. ");
+      }
+      else if (second() < 10 && minute() > 9)
+      {
+        terminal.println(String(hour()) + ":" + minute() + ":" + "0" + second() + " A/C OFF after " + runTime + " min. ");
+      }
+      else if (second() < 10 && minute() < 10)
+      {
+        terminal.println(String(hour()) + ":" + "0" + minute() + ":" + "0" + second() + " A/C OFF after " + runTime + " min. ");
+      }
+      else
+      {
+        terminal.println(String(hour()) + ":" + minute() + ":" + second() + " A/C OFF after " + runTime + " min. ");
+      }
+      terminal.flush();
       //Blynk.tweet(String("A/C OFF after running ") + runTime + " minutes. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
       xStop++;
     }
@@ -388,8 +437,52 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
     if (xStart == 0)
     {
       runTime = ( (onNow - offNow) / 60 ); // Still need to make this report 'right' time on first run!
-      //Blynk.tweet(String("A/C ON after ") + runTime + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
-      xStart++;
+
+      // After ESP startup (first run) this displays a message so RTC error doesn't mess with clock.
+      if (xFirstRun == 0)
+      {
+        if (minute() < 10 && second() > 9)
+        {
+          terminal.println(String(hour()) + ":" + "0" + minute() + ":" + second() + " A/C ON (first start).");
+        }
+        else if (second() < 10 && minute() > 9)
+        {
+          terminal.println(String(hour()) + ":" + minute() + ":" + "0" + second() + " A/C ON (first start).");
+        }
+        else if (second() < 10 && minute() < 10)
+        {
+          terminal.println(String(hour()) + ":" + "0" + minute() + ":" + "0" + second() + " A/C ON (first start).");
+        }
+        else
+        {
+          terminal.println(String(hour()) + ":" + minute() + ":" + second() + " A/C ON (first start).");
+        }
+        terminal.flush();
+        xFirstRun++;
+        xStart++;
+      }
+      else
+      {
+        if (minute() < 10 && second() > 9)
+        {
+          terminal.println(String(hour()) + ":" + "0" + minute() + ":" + second() + " A/C ON after " + runTime + " min. ");
+        }
+        else if (second() < 10 && minute() > 9)
+        {
+          terminal.println(String(hour()) + ":" + minute() + ":" + "0" + second() + " A/C ON after " + runTime + " min. ");
+        }
+        else if (second() < 10 && minute() < 10)
+        {
+          terminal.println(String(hour()) + ":" + "0" + minute() + ":" + "0" + second() + " A/C ON after " + runTime + " min. ");
+        }
+        else
+        {
+          terminal.println(String(hour()) + ":" + minute() + ":" + second() + " A/C ON after " + runTime + " min. ");
+        }
+        terminal.flush();
+        //Blynk.tweet(String("A/C ON after ") + runTime + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
+        xStart++;
+      }
     }
     xStop = 0;
     offNow = now();
@@ -416,6 +509,7 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
     {
       Blynk.tweet(String("Low split (") + tempSplit + "°F) " + "recorded at " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
       Blynk.notify(String("Low HVAC split: ") + tempSplit + "°F");
+      //terminal.println(String("Low HVAC split: ") + tempSplit + "°F");
       alarmFor = 5; // Arbitrary value indicating notification sent and locking out repetitive notifications.
     }
   }
@@ -426,42 +520,8 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
   }
 }
 
-void countRuntime()  // Maybe add a midnight Tweet (or replace status) of the day's runtime (timstamped, of course)
+void countRuntime()
 {
-  
-  // Sets the date once after reset/boot up, or when the date actually changes.
-  if (dayCountLatch == 0)
-  {
-    todaysDate = day();  // Minute for testing. Day for production.
-    dayCountLatch++;
-  }
-
-  // Runs the blower timer when it's on. *** MIGHT STEAL THIS CODE RUN/OFF LCD DISPLAY.
-  if (digitalRead(blowerPin) == LOW && todaysDate == day())
-  {
-    currentRuntimeSec++;
-  }
-  // Resets the timer on the next day if the blower is running.
-   else if (digitalRead(blowerPin) == LOW && todaysDate != day())
-  {
-    Blynk.tweet(String("On ") + month() + "/" + day() + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
-    yesterdayRuntime = currentRuntimeMin; // Moves today's runtime to yesterday.
-    dayCountLatch = 0; // Allows today's date to be reset.
-    currentRuntimeSec = 0; // Reset today's sec timer.
-    currentRuntimeMin = 0; // Reset today's min timer.
-    lcd1.clear();
-  }
-  // Resets the timer on the next day if the blower isn't running!
-  else if (digitalRead(blowerPin) == HIGH && todaysDate != day())
-  {
-    Blynk.tweet(String("On ") + month() + "/" + day() + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
-    yesterdayRuntime = currentRuntimeMin;
-    dayCountLatch = 0;
-    currentRuntimeSec = 0;
-    currentRuntimeMin = 0;
-    lcd1.clear();
-  }
-
   // This makes sure the right numerical date for yesterday is shown for the first of any month.
   if (day() == 1)
   {
@@ -483,7 +543,42 @@ void countRuntime()  // Maybe add a midnight Tweet (or replace status) of the da
     yesterdaysDate = day() - 1; // Subtracts 1 day to get to yesterday unless it's the first of the month (see above)
   }
 
+  // Sets the date once after reset/boot up, or when the date actually changes.
+  if (dayCountLatch == 0)
+  {
+    todaysDate = day();
+    dayCountLatch++;
+  }
+
+  // Runs the blower timer when it's on. *** MIGHT STEAL THIS CODE RUN/OFF LCD DISPLAY.
+  if (digitalRead(blowerPin) == LOW && todaysDate == day())
+  {
+    currentRuntimeSec++;
+  }
+  // Resets the timer on the next day if the blower is running.
+  else if (digitalRead(blowerPin) == LOW && todaysDate != day())
+  {
+    Blynk.tweet(String("On ") + month() + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
+    Blynk.virtualWrite(14, currentRuntimeMin); // For graphing total runtime per day.
+    yesterdayRuntime = currentRuntimeMin; // Moves today's runtime to yesterday for the LCD.
+    dayCountLatch = 0; // Allows today's date to be reset.
+    currentRuntimeSec = 0; // Reset today's sec timer.
+    currentRuntimeMin = 0; // Reset today's min timer.
+    lcd1.clear();
+  }
+  // Resets the timer on the next day if the blower isn't running.
+  else if (digitalRead(blowerPin) == HIGH && todaysDate != day())
+  {
+    Blynk.tweet(String("On ") + month() + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
+    Blynk.virtualWrite(14, currentRuntimeMin);
+    yesterdayRuntime = currentRuntimeMin;
+    dayCountLatch = 0;
+    currentRuntimeSec = 0;
+    currentRuntimeMin = 0;
+    lcd1.clear();
+  }
+
   currentRuntimeMin = (currentRuntimeSec / 60);
-  lcd1.print(0, 0, String(month()) + "/" + yesterdaysDate + ": " + yesterdayRuntime + " min");  // Prints yesterday's accumulated runtime. 
+  lcd1.print(0, 0, String(month()) + "/" + yesterdaysDate + ": " + yesterdayRuntime + " min");  // Prints yesterday's accumulated runtime.
   lcd1.print(0, 1, String("Today: ") + currentRuntimeMin + " min");  // Prints today's accumulated runtime.
 }

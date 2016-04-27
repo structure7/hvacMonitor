@@ -66,6 +66,7 @@ int yesterdayRuntime; // Yesterday's blower runtime in minutes
 
 int dayCountLatch = 0;
 int todaysDate, yesterdaysDate;
+int msgLatch = 0;
 
 void setup()
 {
@@ -80,26 +81,6 @@ void setup()
     // Wait until connected
   }
   rtc.begin();
-  delay(5000); // Allow RTC to fully start
-
-  terminal.println(" ");
-  if (minute() < 10 && second() > 9)
-  {
-    terminal.println(String(hour()) + ":" + "0" + minute() + ":" + second() + " SYSTEM RESET");
-  }
-  else if (second() < 10 && minute() > 9)
-  {
-    terminal.println(String(hour()) + ":" + minute() + ":" + "0" + second() + " SYSTEM RESET");
-  }
-  else if (second() < 10 && minute() < 10)
-  {
-    terminal.println(String(hour()) + ":" + "0" + minute() + ":" + "0" + second() + " SYSTEM RESET");
-  }
-  else
-  {
-    terminal.println(String(hour()) + ":" + minute() + ":" + second() + " SYSTEM RESET");
-  }
-  terminal.flush();
 
   timer.setInterval(2500L, sendTemps); // Temperature sensor polling interval
   timer.setInterval(2500L, sendLCDstatus); // Blower fan status polling interval
@@ -107,11 +88,38 @@ void setup()
   timer.setInterval(300000L, sendWU); // 5 minutes between Wunderground API calls.
   timer.setInterval(330000L, sendWUtoBlynk); // 5ish minutes between API data updates to Blynk.
   timer.setInterval(1000L, countRuntime);  // Counts blower runtime in seconds for daily accumulation display in diagnostics.
+  timer.setInterval(5000L, startupMsg);
 }
 
 static char respBuf[4096];
 
 bool showWeather(char *json);
+
+void startupMsg() // Startup msg to app terminal
+{
+  if (msgLatch == 0)
+  {
+    terminal.println(" ");
+    if (minute() < 10 && hour() < 12)
+    {
+      terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + "0" + minute() + "AM - SYSTEM RESET");
+    }
+    else if (minute() < 10 && hour() > 11)
+    {
+      terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + "0" + minute() + "PM - SYSTEM RESET");
+    }
+    else if (minute() > 9 && hour() < 12)
+    {
+      terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + minute() + "AM - SYSTEM RESET");
+    }
+    else if (minute() > 9 && hour() > 11)
+    {
+      terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + minute() + "PM - SYSTEM RESET");
+    }
+    terminal.flush();
+    msgLatch++;
+  }
+}
 
 void sendWUtoBlynk()
 {
@@ -401,23 +409,25 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
     if (xStop == 0) // This variable isn't set to zero until the blower runs for the first time after ESP reset.
     {
       runTime = ( (offNow - onNow) / 60 );
-      if (minute() < 10 && second() > 9)
+      //NEW CODE BELOW
+      if (minute() < 10 && hour() < 12)
       {
-        terminal.println(String(hour()) + ":" + "0" + minute() + ":" + second() + " A/C OFF after " + runTime + " min. ");
+        terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + "0" + minute() + "AM - A/C OFF after " + runTime + " min. ");
       }
-      else if (second() < 10 && minute() > 9)
+      else if (minute() < 10 && hour() > 11)
       {
-        terminal.println(String(hour()) + ":" + minute() + ":" + "0" + second() + " A/C OFF after " + runTime + " min. ");
+        terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + "0" + minute() + "PM - A/C OFF after " + runTime + " min. ");
       }
-      else if (second() < 10 && minute() < 10)
+      else if (minute() > 9 && hour() < 12)
       {
-        terminal.println(String(hour()) + ":" + "0" + minute() + ":" + "0" + second() + " A/C OFF after " + runTime + " min. ");
+        terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + minute() + "AM - A/C OFF after " + runTime + " min. ");
       }
-      else
+      else if (minute() > 9 && hour() > 11)
       {
-        terminal.println(String(hour()) + ":" + minute() + ":" + second() + " A/C OFF after " + runTime + " min. ");
+        terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + minute() + "PM - A/C OFF after " + runTime + " min. ");
       }
       terminal.flush();
+
       //Blynk.tweet(String("A/C OFF after running ") + runTime + " minutes. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
       xStop++;
     }
@@ -441,21 +451,21 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
       // After ESP startup (first run) this displays a message so RTC error doesn't mess with clock.
       if (xFirstRun == 0)
       {
-        if (minute() < 10 && second() > 9)
+        if (minute() < 10 && hour() < 12)
         {
-          terminal.println(String(hour()) + ":" + "0" + minute() + ":" + second() + " A/C ON (first start).");
+          terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + "0" + minute() + "AM - A/C ON (first start).");
         }
-        else if (second() < 10 && minute() > 9)
+        else if (minute() < 10 && hour() > 11)
         {
-          terminal.println(String(hour()) + ":" + minute() + ":" + "0" + second() + " A/C ON (first start).");
+          terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + "0" + minute() + "PM - A/C ON (first start).");
         }
-        else if (second() < 10 && minute() < 10)
+        else if (minute() > 9 && hour() < 12)
         {
-          terminal.println(String(hour()) + ":" + "0" + minute() + ":" + "0" + second() + " A/C ON (first start).");
+          terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + minute() + "AM - A/C ON (first start).");
         }
-        else
+        else if (minute() > 9 && hour() > 11)
         {
-          terminal.println(String(hour()) + ":" + minute() + ":" + second() + " A/C ON (first start).");
+          terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + minute() + "PM - A/C ON (first start).");
         }
         terminal.flush();
         xFirstRun++;
@@ -463,23 +473,24 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
       }
       else
       {
-        if (minute() < 10 && second() > 9)
+        if (minute() < 10 && hour() < 12)
         {
-          terminal.println(String(hour()) + ":" + "0" + minute() + ":" + second() + " A/C ON after " + runTime + " min. ");
+          terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + "0" + minute() + "AM - A/C ON after " + runTime + " min. ");
         }
-        else if (second() < 10 && minute() > 9)
+        else if (minute() < 10 && hour() > 11)
         {
-          terminal.println(String(hour()) + ":" + minute() + ":" + "0" + second() + " A/C ON after " + runTime + " min. ");
+          terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + "0" + minute() + "PM - A/C ON after " + runTime + " min. ");
         }
-        else if (second() < 10 && minute() < 10)
+        else if (minute() > 9 && hour() < 12)
         {
-          terminal.println(String(hour()) + ":" + "0" + minute() + ":" + "0" + second() + " A/C ON after " + runTime + " min. ");
+          terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + minute() + "AM - A/C ON after " + runTime + " min. ");
         }
-        else
+        else if (minute() > 9 && hour() > 11)
         {
-          terminal.println(String(hour()) + ":" + minute() + ":" + second() + " A/C ON after " + runTime + " min. ");
+          terminal.println(String(month()) + "/" + day() + " " + hourFormat12() + ":" + minute() + "PM - A/C ON after " + runTime + " min. ");
         }
         terminal.flush();
+
         //Blynk.tweet(String("A/C ON after ") + runTime + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
         xStart++;
       }

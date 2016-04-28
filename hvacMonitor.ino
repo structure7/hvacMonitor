@@ -30,7 +30,7 @@ SimpleTimer timer;
 // HTTP request
 const char WUNDERGROUND_REQ[] =
   //"GET /test.json HTTP/1.1\r\n"  // Keep for test/debug
-  "GET /api/myAPIkey/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n"
+  "GET /api/myApiKey/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n"
   "User-Agent: ESP8266/0.1\r\n"
   "Accept: */*\r\n"
   "Host: " WUNDERGROUND "\r\n"
@@ -65,7 +65,7 @@ int currentRuntimeMin; // Blower runtime today in minutes
 int yesterdayRuntime; // Yesterday's blower runtime in minutes
 
 int dayCountLatch = 0;
-int todaysDate, yesterdaysDate;
+int todaysDate, yesterdaysDate, yesterdaysMonth;
 int msgLatch = 0;
 
 void setup()
@@ -532,27 +532,37 @@ void loop() // Typically Blynk tasks should not be placed in void loop(), howeve
 }
 
 void countRuntime()
-{
+{ 
   // This makes sure the right numerical date for yesterday is shown for the first of any month.
   if (day() == 1)
   {
     if (month() == 3) // The date before 3/1 is 29 (2/29), and so on below.
     {
       yesterdaysDate = 29;
+      yesterdaysMonth = month() - 1;
     }
     else if (month() == 5 || month() == 7 || month() == 10 || month() == 12)
     {
       yesterdaysDate = 30;
+      yesterdaysMonth = month() - 1;
     }
-    else if (month() == 1 || month() == 2 || month() == 4 || month() == 6 || month() == 8 || month() == 9 || month() == 11)
+    else if (month() == 2 || month() == 4 || month() == 6 || month() == 8 || month() == 9 || month() == 11)
     {
       yesterdaysDate = 31;
+      yesterdaysMonth = month() - 1;
+    }
+    else if (month() == 1)
+    {
+      yesterdaysDate = 31;
+      yesterdaysMonth = 12;      
     }
   }
   else
   {
     yesterdaysDate = day() - 1; // Subtracts 1 day to get to yesterday unless it's the first of the month (see above)
+    yesterdaysMonth = month();
   }
+
 
   // Sets the date once after reset/boot up, or when the date actually changes.
   if (dayCountLatch == 0)
@@ -569,7 +579,7 @@ void countRuntime()
   // Resets the timer on the next day if the blower is running.
   else if (digitalRead(blowerPin) == LOW && todaysDate != day())
   {
-    Blynk.tweet(String("On ") + month() + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
+    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
     Blynk.virtualWrite(14, currentRuntimeMin); // For graphing total runtime per day.
     yesterdayRuntime = currentRuntimeMin; // Moves today's runtime to yesterday for the LCD.
     dayCountLatch = 0; // Allows today's date to be reset.
@@ -580,7 +590,7 @@ void countRuntime()
   // Resets the timer on the next day if the blower isn't running.
   else if (digitalRead(blowerPin) == HIGH && todaysDate != day())
   {
-    Blynk.tweet(String("On ") + month() + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
+    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
     Blynk.virtualWrite(14, currentRuntimeMin);
     yesterdayRuntime = currentRuntimeMin;
     dayCountLatch = 0;

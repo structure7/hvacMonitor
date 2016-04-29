@@ -58,7 +58,9 @@ unsigned long onNow = now();
 unsigned long offNow = now(); // To prevent error on first Tweet after blower starts - NOT WORKING YET
 
 int offHour, offHour24, onHour, onHour24, offMinute, onMinute, offSecond, onSecond, offMonth, onMonth,
-    offDay, onDay, runTime, tempSplit, secondsCount, alarmTime;
+    offDay, onDay, runTime, tempSplit, secondsCount, alarmTime, startHour, startMin, startMonth, startDay;
+
+int resetLatch = 0;
 
 int currentRuntimeSec; // Sum of today's blower runtime in seconds
 int currentOfftimeSec = 0;
@@ -108,13 +110,14 @@ void setup()
     for (int i = 1 ; i < 201 ; i++) {
       eeWBsum += EEPROM.read(i);
     }
-    //Serial.println(String(eeWBsum) + " minutes reported from EEPROM after reset.");
-    //Blynk.virtualWrite(17, eeWBsum);
-    //Serial.println(String(EEPROM.read(eeIndex)) + " is the next index location to write to.");
   }
   Blynk.virtualWrite(17, eeWBsum);
   Blynk.virtualWrite(18, EEPROM.read(eeIndex));
-  
+
+  if (eeWBsum > 0) {
+    currentRuntimeSec = (eeWBsum * 60);
+  } // If there's something in EEPROM, write it to Today's Runtime
+
   rtc.begin();
 
   timer.setInterval(2500L, sendTemps); // Temperature sensor polling interval
@@ -124,7 +127,38 @@ void setup()
   timer.setInterval(330000L, sendWUtoBlynk); // 5ish minutes between API data updates to Blynk.
   timer.setInterval(1000L, countRuntime);  // Counts blower runtime for daily accumulation displays.
   timer.setInterval(1000L, totalRuntime);  // Counts blower runtime for daily EEPROM storage.
+  timer.setInterval(500L, timeKeeper);
+}
 
+void loop()
+{
+  Blynk.run();
+  timer.run();
+}
+
+BLYNK_WRITE(V19) // App button to reset EEPROM stored total and address
+{
+  int pinData = param.asInt();
+
+  if (pinData == 0)
+  {
+    Serial.println("EEPROM RESET");
+    for (int i = 0 ; i < 201 ; i++) {
+      EEPROM.write(i, 0);
+    }
+    EEPROM.write(eeIndex, 1); // Defined address 1 as the starting location.
+    EEPROM.commit();
+  }
+}
+
+BLYNK_WRITE(V20) // App button to reset ESP
+{
+  int pinData = param.asInt();
+
+  if (pinData == 0)
+  {
+    ESP.restart();
+  }
 }
 
 static char respBuf[4096];
@@ -286,13 +320,30 @@ void sendTemps()
 
 void sendBlowerStatus()
 {
-  if (digitalRead(blowerPin) == HIGH && resetTattle == 0)
+  if (resetLatch == 0) // Sets ESP start/reset time and date to display in app until blower activity.
   {
-    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + hour() + ":" + minute());
+    startHour = hour();
+    startMin = minute();
+    startMonth = month();
+    startDay = day();
+    resetLatch++;
   }
-  else if (digitalRead(blowerPin) == LOW && resetTattle == 0)
+
+  if (digitalRead(blowerPin) == HIGH && resetTattle == 0 && startMin > 9)
   {
-    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + hour() + ":" + minute());
+    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + startHour + ":" + startMin + " " + startMonth + "/" + startDay);
+  }
+  else if (digitalRead(blowerPin) == HIGH && resetTattle == 0 && startMin < 10)
+  {
+    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + startHour + ":0" + startMin + " " + startMonth + "/" + startDay);
+  }
+  else if (digitalRead(blowerPin) == LOW && resetTattle == 0 && startMin > 9)
+  {
+    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + startHour + ":" + startMin + " " + startMonth + "/" + startDay);
+  }
+  else if (digitalRead(blowerPin) == LOW && resetTattle == 0 && startMin < 10)
+  {
+    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + startHour + ":0" + startMin + " " + startMonth + "/" + startDay);
   }
   else if (digitalRead(blowerPin) == HIGH && resetTattle == 1) // Runs when blower is OFF.
   {
@@ -302,7 +353,7 @@ void sendBlowerStatus()
     }
     else if (hour() < 12 && minute() < 10)
     {
-      Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":" + "0" + offMinute + "AM on " + offMonth + "/" + offDay);
+      Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":0" + offMinute + "AM on " + offMonth + "/" + offDay);
     }
     else if (hour() > 11 && minute() > 9)
     {
@@ -310,7 +361,7 @@ void sendBlowerStatus()
     }
     else if (hour() > 11 && minute() < 10)
     {
-      Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":" + "0" + offMinute + "PM on " + offMonth + "/" + offDay);
+      Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":0" + offMinute + "PM on " + offMonth + "/" + offDay);
     }
   }
   else if (digitalRead(blowerPin) == LOW && resetTattle == 1)
@@ -321,7 +372,7 @@ void sendBlowerStatus()
     }
     else if (hour() < 12 && minute() < 10)
     {
-      Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":" + "0" + onMinute + "AM on " + onMonth + "/" + onDay);
+      Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":0" + onMinute + "AM on " + onMonth + "/" + onDay);
     }
     else if (hour() > 11 && minute() > 9)
     {
@@ -329,7 +380,7 @@ void sendBlowerStatus()
     }
     else if (hour() > 11 && minute() < 10)
     {
-      Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":" + "0" + onMinute + "PM on " + onMonth + "/" + onDay);
+      Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":0" + onMinute + "PM on " + onMonth + "/" + onDay);
     }
 
     /*
@@ -384,11 +435,8 @@ void totalRuntime() // Counts the current blower run session.
 
 }
 
-void loop() // Typically Blynk tasks should not be placed in void loop(), however none of these (Blynk) tasks run continuously for any reason.
+void timeKeeper()
 {
-  Blynk.run();
-  timer.run();
-
   if (digitalRead(blowerPin) == HIGH) // Runs when blower is OFF.
   {
     // The following records the time the blower started.

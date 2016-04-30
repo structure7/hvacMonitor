@@ -105,7 +105,7 @@ void setup()
   if (eeWBsum > 0) {
     currentRuntimeSec = (eeWBsum * 60);
   }
-
+  
   yesterdayRuntime = (EEPROM.read(200) * 4);
 
   Blynk.virtualWrite(17, eeWBsum);
@@ -342,38 +342,38 @@ void sendBlowerStatus()
   }
   else if (digitalRead(blowerPin) == HIGH && resetTattle == 1) // Runs when blower is OFF.
   {
-    if (hour() < 12 && minute() > 9)
+    if (offHour < 12 && offMinute > 9)
     {
       Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":" + offMinute + "AM on " + offMonth + "/" + offDay);
     }
-    else if (hour() < 12 && minute() < 10)
+    else if (offHour < 12 && offMinute < 10)
     {
       Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":0" + offMinute + "AM on " + offMonth + "/" + offDay);
     }
-    else if (hour() > 11 && minute() > 9)
+    else if (offHour > 11 && offMinute > 9)
     {
       Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":" + offMinute + "PM on " + offMonth + "/" + offDay);
     }
-    else if (hour() > 11 && minute() < 10)
+    else if (offHour > 11 && offMinute < 10)
     {
       Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":0" + offMinute + "PM on " + offMonth + "/" + offDay);
     }
   }
   else if (digitalRead(blowerPin) == LOW && resetTattle == 1)
   {
-    if (hour() < 12 && minute() > 9)
+    if (onHour < 12 && onMinute > 9)
     {
       Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":" + onMinute + "AM on " + onMonth + "/" + onDay);
     }
-    else if (hour() < 12 && minute() < 10)
+    else if (onHour < 12 && onMinute < 10)
     {
       Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":0" + onMinute + "AM on " + onMonth + "/" + onDay);
     }
-    else if (hour() > 11 && minute() > 9)
+    else if (onHour > 11 && onMinute > 9)
     {
       Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":" + onMinute + "PM on " + onMonth + "/" + onDay);
     }
-    else if (hour() > 11 && minute() < 10)
+    else if (onHour > 11 && onMinute < 10)
     {
       Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":0" + onMinute + "PM on " + onMonth + "/" + onDay);
     }

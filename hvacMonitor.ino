@@ -40,8 +40,7 @@ const char WUNDERGROUND_REQ[] =
 
 float temp_f;
 
-WidgetLED led1(V2);
-WidgetLED led2(V28); // eeprom write
+WidgetLED led1(V2); // Heartbeat
 WidgetRTC rtc;
 BLYNK_ATTACH_WIDGET(rtc, V8);
 
@@ -76,25 +75,15 @@ int msgLatch = 0;
 
 // For EEPROM
 int eeIndex = 0; // This is the EEPROM address location that keeps track of next EEPROM address available for storing a blower runtime.
-int eeCurrent;
-int eeWBsum;
+int eeCurrent; // This is the next EEPROM address location that runtime will be stored to.
+int eeWBsum; // This is the sum of all EEPROM addresses (total runtime stored).
 
 void setup()
 {
   Serial.begin(9600);
   Blynk.begin(auth, "ssid", "pw");
 
-  EEPROM.begin(200);
-
-  /*
-    //*************************************RUN THIS ONCE THEN COMMENT OUT TO CLEAR OUT EEPROM****************************
-    for (int i = 0 ; i < 201 ; i++) {
-      EEPROM.write(i, 0);
-    }
-    EEPROM.write(eeIndex, 1); // Defined address 1 as the starting location.
-    EEPROM.commit();
-    //*************************************RUN THIS ONCE THEN COMMENT OUT TO CLEAR OUT EEPROM****************************
-  */
+  EEPROM.begin(201); // Reminder: "201" means addresses 0 to 200 are available (not 1 to 201 or 0 to201).
 
   sensors.begin();
   sensors.setResolution(ds18b20RA, 10);
@@ -104,19 +93,25 @@ void setup()
     // Wait until connected
   }
 
-  // EEPROM WRITEBACK AFTER RESET
+  // EEPROM WRITEBACK AFTER RESET (if required)
   if (EEPROM.read(eeIndex) > 1) // If this is true, than the index has advanced beyond the first position (meaning something was stored there (and maybe higher) to be written back.
   {
-    for (int i = 1 ; i < 201 ; i++) {
+    for (int i = 1 ; i < 200 ; i++) {
       eeWBsum += EEPROM.read(i);
     }
   }
-  Blynk.virtualWrite(17, eeWBsum);
-  Blynk.virtualWrite(18, EEPROM.read(eeIndex));
 
+  // If there's something in EEPROM, write it to Today's Runtime
   if (eeWBsum > 0) {
     currentRuntimeSec = (eeWBsum * 60);
-  } // If there's something in EEPROM, write it to Today's Runtime
+  }
+
+  yesterdayRuntime = (EEPROM.read(200) * 4);
+
+  Blynk.virtualWrite(17, eeWBsum);
+  Blynk.virtualWrite(18, EEPROM.read(eeIndex));
+  Blynk.virtualWrite(21, EEPROM.read(200));
+  // END EEPROM WRITEBACK ROUTINE
 
   rtc.begin();
 
@@ -432,7 +427,6 @@ void totalRuntime() // Counts the current blower run session.
     Blynk.virtualWrite(18, eeCurrent);
     currentRuntimeStint = 0;
   }
-
 }
 
 void timeKeeper()
@@ -574,11 +568,12 @@ void countRuntime()
     currentRuntimeSec = 0; // Reset today's sec timer.
     currentRuntimeMin = 0; // Reset today's min timer.
 
-    // Resets EEPROM at the end of the day
-    for (int i = 0 ; i < 201 ; i++) {
+    // Resets EEPROM at the end of the day (except for yesterday's runtime)
+    for (int i = 0 ; i < 200 ; i++) {
       EEPROM.write(i, 0);
     }
     EEPROM.write(eeIndex, 1); // Defined address 1 as the starting location.
+    EEPROM.write(200, (yesterdayRuntime / 4)); // Write yesterday's runtime to EEPROM
     EEPROM.commit();
   }
   // Resets the timer on the next day if the blower isn't running.
@@ -590,11 +585,12 @@ void countRuntime()
     currentRuntimeSec = 0;
     currentRuntimeMin = 0;
 
-    // Resets EEPROM at the end of the day
-    for (int i = 0 ; i < 201 ; i++) {
+    // Resets EEPROM at the end of the day (except for yesterday's runtime)
+    for (int i = 0 ; i < 200 ; i++) {
       EEPROM.write(i, 0);
     }
     EEPROM.write(eeIndex, 1); // Defined address 1 as the starting location.
+    EEPROM.write(200, (yesterdayRuntime / 4)); // Write yesterday's runtime to EEPROM
     EEPROM.commit();
   }
 

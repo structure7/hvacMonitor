@@ -93,7 +93,7 @@ void setup()
     // Wait until connected
   }
 
-  // EEPROM WRITEBACK AFTER RESET (if required)
+  // START EEPROM WRITEBACK ROUTINE
   if (EEPROM.read(eeIndex) > 1) // If this is true, than the index has advanced beyond the first position (meaning something was stored there (and maybe higher) to be written back.
   {
     for (int i = 1 ; i < 200 ; i++) {
@@ -244,7 +244,6 @@ void sendWU()
   else {
     delay(DELAY_ERROR);
   }
-
 }
 
 bool showWeather(char *json)
@@ -342,38 +341,38 @@ void sendBlowerStatus()
   }
   else if (digitalRead(blowerPin) == HIGH && resetTattle == 1) // Runs when blower is OFF.
   {
-    if (offHour < 12 && offMinute > 9)
+    if (offHour24 < 12 && offMinute > 9)
     {
       Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":" + offMinute + "AM on " + offMonth + "/" + offDay);
     }
-    else if (offHour < 12 && offMinute < 10)
+    else if (offHour24 < 12 && offMinute < 10)
     {
       Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":0" + offMinute + "AM on " + offMonth + "/" + offDay);
     }
-    else if (offHour > 11 && offMinute > 9)
+    else if (offHour24 > 11 && offMinute > 9)
     {
       Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":" + offMinute + "PM on " + offMonth + "/" + offDay);
     }
-    else if (offHour > 11 && offMinute < 10)
+    else if (offHour24 > 11 && offMinute < 10)
     {
       Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":0" + offMinute + "PM on " + offMonth + "/" + offDay);
     }
   }
   else if (digitalRead(blowerPin) == LOW && resetTattle == 1)
   {
-    if (onHour < 12 && onMinute > 9)
+    if (onHour24 < 12 && onMinute > 9)
     {
       Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":" + onMinute + "AM on " + onMonth + "/" + onDay);
     }
-    else if (onHour < 12 && onMinute < 10)
+    else if (onHour24 < 12 && onMinute < 10)
     {
       Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":0" + onMinute + "AM on " + onMonth + "/" + onDay);
     }
-    else if (onHour > 11 && onMinute > 9)
+    else if (onHour24 > 11 && onMinute > 9)
     {
       Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":" + onMinute + "PM on " + onMonth + "/" + onDay);
     }
-    else if (onHour > 11 && onMinute < 10)
+    else if (onHour24 > 11 && onMinute < 10)
     {
       Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":0" + onMinute + "PM on " + onMonth + "/" + onDay);
     }

@@ -22,6 +22,8 @@ blynk-library | BlynkSimpleEsp8266.h, WidgetRTC.h, TimeLib.h | https://github.co
 OneWire | OneWire.h | https://github.com/PaulStoffregen/OneWire
 Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/milesburton/Arduino-Temperature-Control-Library
 ESP8266 board mgr | N/A | [json](http://arduino.esp8266.com/stable/package_esp8266com_index.json) & [instructions](https://github.com/esp8266/Arduino#installing-with-boards-manager)
+ArduinoJson | ArduinoJson.h | https://github.com/bblanchon/ArduinoJson
+EEPROM | EEPROM.h |
 
 Many thanks to all of the people above. [How to edit this.](https://guides.github.com/features/mastering-markdown/)
 

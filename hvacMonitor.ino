@@ -51,7 +51,7 @@ int alarmTrigger = 0;
 int alarmFor = 0;
 int xFirstRun = 0;
 int resetTattle = 0;
-
+int splitAlarmTime = 180; // 180s (3 min) timeout after a high split reading
 
 unsigned long onNow = now();
 unsigned long offNow = now(); // To prevent error on first Tweet after blower starts - NOT WORKING YET
@@ -105,7 +105,7 @@ void setup()
   if (eeWBsum > 0) {
     currentRuntimeSec = (eeWBsum * 60);
   }
-  
+
   yesterdayRuntime = (EEPROM.read(200) * 4);
 
   Blynk.virtualWrite(17, eeWBsum);
@@ -382,7 +382,7 @@ void sendBlowerStatus()
       // Create runTimeMin and runTimeHour variables (look at hours floating point)
       runTimeMin = ( (onNow - offNow) / 60 ); // Still need to make this report 'right' time on first run!
       runTimeHour = ( runTimeMin / 60 );
-      if (runTimeMin > 120)
+      if (runTimeMin > splitAlarmTime)
       {
       Blynk.tweet(String("A/C ON after ") + runTimeHour + " hours of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
       xStart++;
@@ -489,13 +489,13 @@ void timeKeeper()
     if (tempSplit > 15) // > 15F is an acceptable split for alarm purposes (usually 20F in real life).
     {
       alarmFor = 0; // Resets alarm counting "latch."
-      alarmTime = 0; // Resets 120s alarm.
+      alarmTime = 0; // Resets splitAlarmTime alarm.
     }
     else
     {
       if (alarmFor == 0)
       {
-        alarmTime = secondsCount + 120; // This sets the 120s alarm (from split out of spec to notification being sent)
+        alarmTime = secondsCount + splitAlarmTime; // This sets the alarm time (from split out of spec to notification being sent)
         alarmFor++; // Locks out alarm clock reset until alarmFor == 0.
       }
     }
@@ -510,7 +510,7 @@ void timeKeeper()
   else
   {
     alarmFor = 0; // Resets alarm counting "latch."
-    alarmTime = 0; // Resets 120s alarm.
+    alarmTime = 0; // Resets splitAlarmTime alarm.
   }
 }
 
@@ -595,5 +595,16 @@ void countRuntime()
 
   currentRuntimeMin = (currentRuntimeSec / 60);
   Blynk.virtualWrite(14, String(yesterdayRuntime) + " minutes");
-  Blynk.virtualWrite(15, String(currentRuntimeMin) + " minutes");
+  if (currentRuntimeMin < 1)
+  {
+    Blynk.virtualWrite(15, "None");
+  }
+  else if (currentRuntimeMin > 0 && eeCurrent < 1)
+  {
+    Blynk.virtualWrite(15, String(currentRuntimeMin) + " minutes");
+  }
+  else if (currentRuntimeMin > 0 && eeCurrent > 0)
+  {
+    Blynk.virtualWrite(15, String(currentRuntimeMin) + " mins (" + (eeCurrent - 1) + " runs)");
+  }
 }

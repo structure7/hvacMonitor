@@ -31,14 +31,15 @@ SimpleTimer timer;
 // HTTP request
 const char WUNDERGROUND_REQ[] =
   //"GET /test.json HTTP/1.1\r\n"  // Keep for test/debug
-  "GET /api/myApiKey/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n"
+  //"GET /api/myApiKey/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n" // Local PWS
+  "GET /api/myApiKey/conditions/q/KPHX.json HTTP/1.1\r\n" // Airport
   "User-Agent: ESP8266/0.1\r\n"
   "Accept: */*\r\n"
   "Host: " WUNDERGROUND "\r\n"
   "Connection: close\r\n"
   "\r\n";
 
-float temp_f;
+int temp_f;
 
 WidgetLED led1(V2); // Heartbeat
 WidgetRTC rtc;
@@ -60,6 +61,9 @@ int offHour, offHour24, onHour, onHour24, offMinute, onMinute, offSecond, onSeco
     offDay, onDay, runTime, tempSplit, secondsCount, alarmTime, startHour, startMin, startMonth, startDay;
 
 int resetLatch = 0;
+
+int dailyOutsideHigh = 0;
+int dailyOutsideLow = 200;
 
 int currentRuntimeSec; // Sum of today's blower runtime in seconds
 int currentOfftimeSec = 0;
@@ -108,9 +112,6 @@ void setup()
 
   yesterdayRuntime = (EEPROM.read(200) * 4);
 
-  Blynk.virtualWrite(17, eeWBsum);
-  Blynk.virtualWrite(18, EEPROM.read(eeIndex));
-  Blynk.virtualWrite(21, EEPROM.read(200));
   // END EEPROM WRITEBACK ROUTINE
 
   rtc.begin();
@@ -172,6 +173,20 @@ void sendWUtoBlynk()
     Blynk.virtualWrite(12, "ERR");
     Blynk.tweet(String("WU API error reporting a temp value of ") + temp_f + " at " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
   }
+
+
+  if (temp_f > dailyOutsideHigh)
+  {
+    dailyOutsideHigh = temp_f;
+    Blynk.virtualWrite(5, dailyOutsideHigh);
+  }
+
+  if (temp_f < dailyOutsideLow)
+  {
+    dailyOutsideLow = temp_f;
+    Blynk.virtualWrite(13, dailyOutsideLow);
+  }
+
 }
 
 void sendWU()
@@ -423,7 +438,6 @@ void totalRuntime() // Counts the current blower run session.
     eeCurrent++;
     EEPROM.write(eeIndex, eeCurrent);
     EEPROM.commit();
-    Blynk.virtualWrite(18, eeCurrent);
     currentRuntimeStint = 0;
   }
 }
@@ -561,7 +575,7 @@ void countRuntime()
   // Resets the timer on the next day if the blower is running.
   else if (digitalRead(blowerPin) == LOW && todaysDate != day())
   {
-    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
+    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total. Airport was " + dailyOutsideHigh + "°F/" + dailyOutsideLow + "°F."); // Tweet total runtime and outdoor high/low.
     yesterdayRuntime = currentRuntimeMin; // Moves today's runtime to yesterday for the app display.
     dayCountLatch = 0; // Allows today's date to be reset.
     currentRuntimeSec = 0; // Reset today's sec timer.
@@ -579,6 +593,8 @@ void countRuntime()
   else if (digitalRead(blowerPin) == HIGH && todaysDate != day())
   {
     Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
+    dailyOutsideHigh = 0;
+    dailyOutsideLow = 200;
     yesterdayRuntime = currentRuntimeMin;
     dayCountLatch = 0;
     currentRuntimeSec = 0;

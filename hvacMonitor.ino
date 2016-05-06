@@ -576,6 +576,8 @@ void countRuntime()
   else if (digitalRead(blowerPin) == LOW && todaysDate != day())
   {
     Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total. Airport was " + dailyOutsideHigh + "°F/" + dailyOutsideLow + "°F."); // Tweet total runtime and outdoor high/low.
+    dailyOutsideHigh = 0;
+    dailyOutsideLow = 200;
     yesterdayRuntime = currentRuntimeMin; // Moves today's runtime to yesterday for the app display.
     dayCountLatch = 0; // Allows today's date to be reset.
     currentRuntimeSec = 0; // Reset today's sec timer.
@@ -592,7 +594,7 @@ void countRuntime()
   // Resets the timer on the next day if the blower isn't running.
   else if (digitalRead(blowerPin) == HIGH && todaysDate != day())
   {
-    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total."); // Tweet total runtime.
+    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total. Airport was " + dailyOutsideHigh + "°F/" + dailyOutsideLow + "°F."); // Tweet total runtime and outdoor high/low.
     dailyOutsideHigh = 0;
     dailyOutsideLow = 200;
     yesterdayRuntime = currentRuntimeMin;

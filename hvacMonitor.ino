@@ -7,7 +7,7 @@
 #include <DallasTemperature.h>
 #include <TimeLib.h> // Used by WidgetRTC.h
 #include <WidgetRTC.h>
-#define ONE_WIRE_BUS 2
+#define ONE_WIRE_BUS 0
 #include <ArduinoJson.h>
 #include <EEPROM.h>
 
@@ -31,8 +31,9 @@ SimpleTimer timer;
 // HTTP request
 const char WUNDERGROUND_REQ[] =
   //"GET /test.json HTTP/1.1\r\n"  // Keep for test/debug
-  //"GET /api/myApiKey/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n" // Local PWS
-  "GET /api/myApiKey/conditions/q/KPHX.json HTTP/1.1\r\n" // Airport
+  "GET /api/myApiKey/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n" // Local PWS
+  //"GET /api/myApiKey/conditions/q/KPHX.json HTTP/1.1\r\n" // Airport
+  //"GET /api/myApiKey/conditions/q/pws:KAZTEMPE47.json HTTP/1.1\r\n" // Local PWS #2
   "User-Agent: ESP8266/0.1\r\n"
   "Accept: */*\r\n"
   "Host: " WUNDERGROUND "\r\n"
@@ -45,7 +46,7 @@ WidgetLED led1(V2); // Heartbeat
 WidgetRTC rtc;
 BLYNK_ATTACH_WIDGET(rtc, V8);
 
-int blowerPin = 0;  // 3.3V logic source from blower
+int blowerPin = 2;  // 3.3V logic source from blower
 int xStop = 1;
 int xStart = 1;
 int alarmTrigger = 0;

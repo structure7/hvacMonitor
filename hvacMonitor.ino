@@ -120,8 +120,8 @@ void setup()
   timer.setInterval(2500L, sendTemps); // Temperature sensor polling interval
   timer.setInterval(2500L, sendBlowerStatus); // Blower fan status polling interval
   timer.setInterval(5000L, sendHeartbeat); // Blinks Blynk LED to reflect online status
-  timer.setInterval(300000L, sendWU); // 5 minutes between Wunderground API calls.
-  timer.setInterval(330000L, sendWUtoBlynk); // 5ish minutes between API data updates to Blynk.
+  timer.setInterval(180000L, sendWU); // 3 minutes between Wunderground API calls.
+  //timer.setInterval(330000L, sendWUtoBlynk); // 5ish minutes between API data updates to Blynk.
   timer.setInterval(1000L, countRuntime);  // Counts blower runtime for daily accumulation displays.
   timer.setInterval(1000L, totalRuntime);  // Counts blower runtime for daily EEPROM storage.
   timer.setInterval(500L, timeKeeper);
@@ -255,6 +255,7 @@ void sendWU()
 
   // Kept this because I haven't quite figured out how to keep ESP from crashing without it.
   if (showWeather(respBuf)) {
+    timer.setTimeout(5000L, sendWUtoBlynk); // Send update to Blynk app shortly after API update.
     delay(DELAY_NORMAL);
   }
   else {
@@ -576,7 +577,7 @@ void countRuntime()
   // Resets the timer on the next day if the blower is running.
   else if (digitalRead(blowerPin) == LOW && todaysDate != day())
   {
-    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total. Airport was " + dailyOutsideHigh + "°F/" + dailyOutsideLow + "°F."); // Tweet total runtime and outdoor high/low.
+    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total. Outside was " + dailyOutsideHigh + "°F/" + dailyOutsideLow + "°F."); // Tweet total runtime and outdoor high/low.
     dailyOutsideHigh = 0;
     dailyOutsideLow = 200;
     yesterdayRuntime = currentRuntimeMin; // Moves today's runtime to yesterday for the app display.
@@ -595,7 +596,7 @@ void countRuntime()
   // Resets the timer on the next day if the blower isn't running.
   else if (digitalRead(blowerPin) == HIGH && todaysDate != day())
   {
-    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total. Airport was " + dailyOutsideHigh + "°F/" + dailyOutsideLow + "°F."); // Tweet total runtime and outdoor high/low.
+    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total. Outside was " + dailyOutsideHigh + "°F/" + dailyOutsideLow + "°F."); // Tweet total runtime and outdoor high/low.
     dailyOutsideHigh = 0;
     dailyOutsideLow = 200;
     yesterdayRuntime = currentRuntimeMin;

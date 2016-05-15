@@ -88,7 +88,7 @@ void setup()
   Serial.begin(9600);
   Blynk.begin(auth, "ssid", "pw");
 
-  EEPROM.begin(201); // Reminder: "201" means addresses 0 to 200 are available (not 1 to 201 or 0 to201).
+  EEPROM.begin(201); // Reminder: "201" means addresses 0 to 200 are available (not 1 to 201 or 0 to 201).
 
   sensors.begin();
   sensors.setResolution(ds18b20RA, 10);
@@ -119,9 +119,8 @@ void setup()
 
   timer.setInterval(2500L, sendTemps); // Temperature sensor polling interval
   timer.setInterval(2500L, sendBlowerStatus); // Blower fan status polling interval
-  timer.setInterval(5000L, sendHeartbeat); // Blinks Blynk LED to reflect online status
+  timer.setInterval(5000L, heartbeatOn); // Blinks Blynk LED to reflect online status
   timer.setInterval(180000L, sendWU); // 3 minutes between Wunderground API calls.
-  //timer.setInterval(330000L, sendWUtoBlynk); // 5ish minutes between API data updates to Blynk.
   timer.setInterval(1000L, countRuntime);  // Counts blower runtime for daily accumulation displays.
   timer.setInterval(1000L, totalRuntime);  // Counts blower runtime for daily EEPROM storage.
   timer.setInterval(500L, timeKeeper);
@@ -131,6 +130,17 @@ void loop()
 {
   Blynk.run();
   timer.run();
+}
+
+void heartbeatOn()  // Blinks a virtual LED in the Blynk app to show the ESP is live and reporting.
+{
+  led1.on();
+  timer.setTimeout(2500L, heartbeatOff);
+}
+
+void heartbeatOff()
+{
+  led1.off();  // The OFF portion of the LED heartbeat indicator in the Blynk app
 }
 
 BLYNK_WRITE(V19) // App button to reset EEPROM stored total and address
@@ -326,7 +336,6 @@ void sendTemps()
   {
     Blynk.virtualWrite(1, "ERR");
   }
-  led1.off();  // The OFF portion of the LED heartbeat indicator in the Blynk app
 }
 
 void sendBlowerStatus()
@@ -393,30 +402,7 @@ void sendBlowerStatus()
     {
       Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":0" + onMinute + "PM on " + onMonth + "/" + onDay);
     }
-
-    /*
-    {
-      // Create runTimeMin and runTimeHour variables (look at hours floating point)
-      runTimeMin = ( (onNow - offNow) / 60 ); // Still need to make this report 'right' time on first run!
-      runTimeHour = ( runTimeMin / 60 );
-      if (runTimeMin > splitAlarmTime)
-      {
-      Blynk.tweet(String("A/C ON after ") + runTimeHour + " hours of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
-      xStart++;
-      }
-      else
-      {
-      Blynk.tweet(String("A/C ON after ") + runTimeMin + " minutes of inactivity. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
-      xStart++;
-      }
-    }
-    */
   }
-}
-
-void sendHeartbeat()  // Blinks a virtual LED in the Blynk app to show the ESP is live and reporting.
-{
-  led1.on();
 }
 
 void totalRuntime() // Counts the current blower run session.
@@ -518,7 +504,7 @@ void timeKeeper()
     if (tempSplit <= 15 && secondsCount > alarmTime && alarmFor == 1)
     {
       Blynk.tweet(String("Low split (") + tempSplit + "°F) " + "recorded at " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
-      Blynk.notify(String("Low HVAC split: ") + tempSplit + "°F");
+      Blynk.notify(String("Low HVAC split: ") + tempSplit + "°F. Call Cool Guys @ 480-313-8893");
       //terminal.println(String("Low HVAC split: ") + tempSplit + "°F");
       alarmFor = 5; // Arbitrary value indicating notification sent and locking out repetitive notifications.
     }

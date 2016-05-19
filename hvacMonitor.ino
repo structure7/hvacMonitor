@@ -192,7 +192,7 @@ void sendWUtoBlynk()
     Blynk.virtualWrite(5, dailyOutsideHigh);
   }
 
-  if (temp_f < dailyOutsideLow)
+  if (temp_f < dailyOutsideLow && temp_f > 0) // "> 0" screens out API zero errors
   {
     dailyOutsideLow = temp_f;
     Blynk.virtualWrite(13, dailyOutsideLow);

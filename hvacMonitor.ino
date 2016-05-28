@@ -45,6 +45,7 @@ int temp_f;
 WidgetLED led1(V2); // Heartbeat
 WidgetRTC rtc;
 BLYNK_ATTACH_WIDGET(rtc, V8);
+WidgetTerminal terminal(V26);
 
 int blowerPin = 2;  // 3.3V logic source from blower
 int xStop = 1;
@@ -130,6 +131,21 @@ void loop()
 {
   Blynk.run();
   timer.run();
+}
+
+BLYNK_WRITE(V27) // App button to report uptime
+{
+  int pinData = param.asInt();
+
+  if (pinData == 0)
+  {
+  float secDur = millis() / 1000;
+  float minDur = secDur / 60;
+  float hourDur = minDur / 60;
+  terminal.println("--------------UPTIME  REPORT--------------");
+  terminal.println(String("HVAC uptime: ") + hourDur + " hours ");
+  terminal.flush();
+  }
 }
 
 void heartbeatOn()  // Blinks a virtual LED in the Blynk app to show the ESP is live and reporting.

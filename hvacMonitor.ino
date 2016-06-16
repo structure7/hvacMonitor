@@ -139,12 +139,28 @@ BLYNK_WRITE(V27) // App button to report uptime
 
   if (pinData == 0)
   {
-  float secDur = millis() / 1000;
-  float minDur = secDur / 60;
-  float hourDur = minDur / 60;
-  terminal.println("------------ UPTIME REPORT ------------");
-  terminal.println(String("HVAC: ") + hourDur + " hours ");
-  terminal.flush();
+    long minDur = millis() / 60000L;
+    long hourDur = millis() / 3600000L;
+    terminal.println(" ");
+    terminal.println(" ");
+    terminal.println(" ");
+    terminal.println(" ");
+    terminal.println(" ");
+    terminal.println(" ");
+    terminal.println(" ");
+    terminal.println(" ");
+    terminal.println(" ");
+    terminal.println("------------ UPTIME REPORT ------------");
+
+    if (minDur < 121)
+    {
+      terminal.println(String("HVAC: ") + minDur + " mins ");
+    }
+    else if (minDur > 120)
+    {
+      terminal.println(String("HVAC: ") + hourDur + " hours ");
+    }
+    terminal.flush();
   }
 }
 

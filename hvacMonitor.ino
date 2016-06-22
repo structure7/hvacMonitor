@@ -1,48 +1,36 @@
-#include <SimpleTimer.h>
-#define BLYNK_PRINT Serial    // Comment this out to disable prints and save space
-//#define BLYNK_DEBUG
+#include <SimpleTimer.h>        // Timer library http://playground.arduino.cc/Code/SimpleTimer
+#define BLYNK_PRINT Serial      // Comment this out to disable prints and save space
+//#define BLYNK_DEBUG           // Turn this on to see everything Blynk is doing
 #include <ESP8266WiFi.h>
 #include <BlynkSimpleEsp8266.h>
-#include <OneWire.h>
-#include <DallasTemperature.h>
-#include <TimeLib.h> // Used by WidgetRTC.h
-#include <WidgetRTC.h>
-#define ONE_WIRE_BUS 0
-#include <ArduinoJson.h>
+#include <OneWire.h>            // Temperature sensor library
+#include <DallasTemperature.h>  // Temperature sensor library
+#include <TimeLib.h>            // Used by WidgetRTC.h
+#include <WidgetRTC.h>          // Blynk's RTC
+#define ONE_WIRE_BUS 0          // GPIO location of the temperature sensors
+//#include <ArduinoJson.h>        // For parsing information from Weather Underground API
 #include <EEPROM.h>
 
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
-DeviceAddress ds18b20RA = { 0x28, 0xEF, 0x97, 0x1E, 0x00, 0x00, 0x80, 0x54 }; // Return air probe
+DeviceAddress ds18b20RA = { 0x28, 0xEF, 0x97, 0x1E, 0x00, 0x00, 0x80, 0x54 }; // Return air probe - Device address found by going to File -> Examples -> DallasTemperature -> oneWireSearch
 DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; // Supply air probe
 
-char auth[] = "fromBlynkApp";
+char auth[] = "fromBlynkApp"; // Assigned by Blynk's app
+
+char ssid[] = "ssid";
+char pass[] = "pw";
+
+char* host = "data.sparkfun.com";
+char* streamId   = "publicKey";
+char* privateKey = "privateKey";
 
 SimpleTimer timer;
 
-// The original time entries that didn't like being removed.
-#define DELAY_NORMAL    (10)
-#define DELAY_ERROR     (10)
+WiFiClient client; // Try running without... might not need? I see this down already in the various subroutines
 
-//#define WUNDERGROUND "www.mk.com"  // Keep for test/debug
-#define WUNDERGROUND "api.wunderground.com"
-
-// HTTP request
-const char WUNDERGROUND_REQ[] =
-  //"GET /test.json HTTP/1.1\r\n"  // Keep for test/debug
-  "GET /api/myApiKey/conditions/q/pws:KAZTEMPE29.json HTTP/1.1\r\n" // Local PWS
-  //"GET /api/myApiKey/conditions/q/KPHX.json HTTP/1.1\r\n" // Airport
-  //"GET /api/myApiKey/conditions/q/pws:KAZTEMPE47.json HTTP/1.1\r\n" // Local PWS #2
-  "User-Agent: ESP8266/0.1\r\n"
-  "Accept: */*\r\n"
-  "Host: " WUNDERGROUND "\r\n"
-  "Connection: close\r\n"
-  "\r\n";
-
-int temp_f;
-
-WidgetLED led1(V2); // Heartbeat
+WidgetLED led1(V2); // Heartbeat (status)
 WidgetRTC rtc;
 BLYNK_ATTACH_WIDGET(rtc, V8);
 WidgetTerminal terminal(V26);
@@ -64,30 +52,29 @@ int offHour, offHour24, onHour, onHour24, offMinute, onMinute, offSecond, onSeco
 
 int resetLatch = 0;
 
-int dailyOutsideHigh = 0;
-int dailyOutsideLow = 200;
-
-int currentRuntimeSec; // Sum of today's blower runtime in seconds
+int currentRuntimeSec;      // Sum of today's blower runtime in seconds
 int currentOfftimeSec = 0;
-int currentRuntimeMin; // Sum of today's blower runtime in minutes
-int currentRuntimeStint; // Current (last) duration of a blower fan run "cycle/session".
-int currentRuntimeStintMin; // Current (last) duration of a blower fan run "cycle/session".
-int yesterdayRuntime; // Sum of yesterday's blower runtime in minutes
+int currentRuntimeMin;      // Sum of today's blower runtime in minutes
+int currentRuntimeStint;    // Current (last) duration of a blower fan run "cycle/session"
+int currentRuntimeStintMin; // Current (last) duration of a blower fan run "cycle/session"
+int yesterdayRuntime;       // Sum of yesterday's blower runtime in minutes
 int totalRuntimeLatch = 0;
 
 int dayCountLatch = 0;
 int todaysDate, yesterdaysDate, yesterdaysMonth;
 int msgLatch = 0;
 
+float tempRA, tempSA;       // Return and supply air temperatures
+
 // For EEPROM
-int eeIndex = 0; // This is the EEPROM address location that keeps track of next EEPROM address available for storing a blower runtime.
-int eeCurrent; // This is the next EEPROM address location that runtime will be stored to.
-int eeWBsum; // This is the sum of all EEPROM addresses (total runtime stored).
+int eeIndex = 0;  // This is the EEPROM address location that keeps track of next EEPROM address available for storing a blower runtime.
+int eeCurrent;    // This is the next EEPROM address location that runtime will be stored to.
+int eeWBsum;      // This is the sum of all EEPROM addresses (total runtime stored).
 
 void setup()
 {
   Serial.begin(9600);
-  Blynk.begin(auth, "ssid", "pw");
+  Blynk.begin(auth, ssid, pass);
 
   EEPROM.begin(201); // Reminder: "201" means addresses 0 to 200 are available (not 1 to 201 or 0 to 201).
 
@@ -113,18 +100,18 @@ void setup()
   }
 
   yesterdayRuntime = (EEPROM.read(200) * 4);
-
   // END EEPROM WRITEBACK ROUTINE
 
   rtc.begin();
 
-  timer.setInterval(2500L, sendTemps); // Temperature sensor polling interval
+  timer.setInterval(2500L, sendTemps);        // Temperature sensor polling interval
   timer.setInterval(2500L, sendBlowerStatus); // Blower fan status polling interval
-  timer.setInterval(5000L, heartbeatOn); // Blinks Blynk LED to reflect online status
-  timer.setInterval(180000L, sendWU); // 3 minutes between Wunderground API calls.
-  timer.setInterval(1000L, countRuntime);  // Counts blower runtime for daily accumulation displays.
-  timer.setInterval(1000L, totalRuntime);  // Counts blower runtime for daily EEPROM storage.
+  timer.setInterval(1000L, countRuntime);     // Counts blower runtime for daily accumulation displays.
+  timer.setInterval(1000L, totalRuntime);     // Counts blower runtime for daily EEPROM storage.
   timer.setInterval(500L, timeKeeper);
+  timer.setInterval(15432L, sfUpdate);        // ~15 sec run status updates to data.sparkfun.com
+
+  heartbeatOn();
 }
 
 void loop()
@@ -133,11 +120,95 @@ void loop()
   timer.run();
 }
 
+void sfUpdate()  //  data.sparkfun update when unit is on
+{
+  if (digitalRead(blowerPin) == LOW)
+  {
+    int runStatus = 40;
+
+    Serial.print("connecting to ");
+    Serial.println(host);
+
+    // Use WiFiClient class to create TCP connections
+    WiFiClient client;
+    const int httpPort = 80;
+    if (!client.connect(host, httpPort)) {
+      Serial.println("connection failed");
+      return;
+    }
+
+    Serial.print("Requesting...");
+
+    // This will send the request to the server
+    client.print(String("GET ") + "/input/" + streamId + "?private_key=" + privateKey + "&returntemp=" + tempRA + "&runstatus=" + runStatus + "&supplytemp=" + tempSA + " HTTP/1.1\r\n" +
+                 "Host: " + host + "\r\n" +
+                 "Connection: close\r\n\r\n");
+    unsigned long timeout = millis();
+    while (client.available() == 0) {
+      if (millis() - timeout > 10000) {
+        Serial.println(">>> Client Timeout !");
+        client.stop();
+        return;
+      }
+    }
+
+    // Read all the lines of the reply from server and print them to Serial
+    while (client.available()) {
+      String line = client.readStringUntil('\r');
+      Serial.print(line);
+    }
+
+    Serial.println();
+    Serial.println("closing connection");
+  }
+  
+ else if (digitalRead(blowerPin) == HIGH)
+  {
+    int runStatus = NULL;
+
+    Serial.print("connecting to ");
+    Serial.println(host);
+
+    // Use WiFiClient class to create TCP connections
+    WiFiClient client;
+    const int httpPort = 80;
+    if (!client.connect(host, httpPort)) {
+      Serial.println("connection failed");
+      return;
+    }
+
+    Serial.print("Requesting...");
+
+    // This will send the request to the server
+    client.print(String("GET ") + "/input/" + streamId + "?private_key=" + privateKey + "&returntemp=" + tempRA + "&runstatus=" + runStatus + "&supplytemp=" + tempSA + " HTTP/1.1\r\n" +
+                 "Host: " + host + "\r\n" +
+                 "Connection: close\r\n\r\n");
+    unsigned long timeout = millis();
+    while (client.available() == 0) {
+      if (millis() - timeout > 5000) {
+        Serial.println(">>> Client Timeout !");
+        client.stop();
+        return;
+      }
+    }
+
+    // Read all the lines of the reply from server and print them to Serial
+    while (client.available()) {
+      String line = client.readStringUntil('\r');
+      Serial.print(line);
+    }
+
+    Serial.println();
+    Serial.println("closing connection");
+
+  }
+}
+
 BLYNK_WRITE(V27) // App button to report uptime
 {
   int pinData = param.asInt();
 
-  if (pinData == 0)
+  if (pinData == 0) // Triggers when button is released only
   {
     long minDur = millis() / 60000L;
     long hourDur = millis() / 3600000L;
@@ -173,6 +244,7 @@ void heartbeatOn()  // Blinks a virtual LED in the Blynk app to show the ESP is 
 void heartbeatOff()
 {
   led1.off();  // The OFF portion of the LED heartbeat indicator in the Blynk app
+  timer.setTimeout(2500L, heartbeatOn);
 }
 
 BLYNK_WRITE(V19) // App button to reset EEPROM stored total and address
@@ -200,145 +272,11 @@ BLYNK_WRITE(V20) // App button to reset ESP
   }
 }
 
-static char respBuf[4096];
-
-bool showWeather(char *json);
-
-void sendWUtoBlynk()
-{
-  // Intended to screen out errors from Wunderground API
-  if (temp_f > 10)
-  {
-    Blynk.virtualWrite(12, temp_f);
-  }
-  else
-  {
-    Blynk.virtualWrite(12, "ERR");
-    Blynk.tweet(String("WU API error reporting a temp value of ") + temp_f + " at " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
-  }
-
-
-  if (temp_f > dailyOutsideHigh)
-  {
-    dailyOutsideHigh = temp_f;
-    Blynk.virtualWrite(5, dailyOutsideHigh);
-  }
-
-  if (temp_f < dailyOutsideLow && temp_f > 0) // "> 0" screens out API zero errors
-  {
-    dailyOutsideLow = temp_f;
-    Blynk.virtualWrite(13, dailyOutsideLow);
-  }
-
-}
-
-void sendWU()
-{
-  // Open socket to WU server port 80
-  Serial.print(F("Connecting to "));
-  Serial.println(WUNDERGROUND);
-
-  // Use WiFiClient class to create TCP connections
-  WiFiClient httpclient;
-  const int httpPort = 80;
-  if (!httpclient.connect(WUNDERGROUND, httpPort)) {
-    Serial.println(F("connection failed"));
-    delay(DELAY_ERROR);
-    return;
-  }
-
-  // This will send the http request to the server
-  Serial.print(WUNDERGROUND_REQ);
-  httpclient.print(WUNDERGROUND_REQ);
-  httpclient.flush();
-
-  // Collect http response headers and content from Weather Underground
-  // HTTP headers are discarded.
-  // The content is formatted in JSON and is left in respBuf.
-  int respLen = 0;
-  bool skip_headers = true;
-  while (httpclient.connected() || httpclient.available()) {
-    if (skip_headers) {
-      String aLine = httpclient.readStringUntil('\n');
-      //Serial.println(aLine);
-      // Blank line denotes end of headers
-      if (aLine.length() <= 1) {
-        skip_headers = false;
-      }
-    }
-    else {
-      int bytesIn;
-      bytesIn = httpclient.read((uint8_t *)&respBuf[respLen], sizeof(respBuf) - respLen);
-      Serial.print(F("bytesIn ")); Serial.println(bytesIn);
-      if (bytesIn > 0) {
-        respLen += bytesIn;
-        if (respLen > sizeof(respBuf)) respLen = sizeof(respBuf);
-      }
-      else if (bytesIn < 0) {
-        Serial.print(F("read error "));
-        Serial.println(bytesIn);
-      }
-    }
-    delay(1);
-  }
-  httpclient.stop();
-
-  if (respLen >= sizeof(respBuf)) {
-    Serial.print(F("respBuf overflow "));
-    Serial.println(respLen);
-    delay(DELAY_ERROR);
-    return;
-  }
-  // Terminate the C string
-  respBuf[respLen++] = '\0';
-  Serial.print(F("respLen "));
-  Serial.println(respLen);
-  //Serial.println(respBuf);
-
-  // Kept this because I haven't quite figured out how to keep ESP from crashing without it.
-  if (showWeather(respBuf)) {
-    timer.setTimeout(5000L, sendWUtoBlynk); // Send update to Blynk app shortly after API update.
-    delay(DELAY_NORMAL);
-  }
-  else {
-    delay(DELAY_ERROR);
-  }
-}
-
-bool showWeather(char *json)
-{
-  StaticJsonBuffer<3 * 1024> jsonBuffer;
-
-  // Skip characters until first '{' found
-  // Ignore chunked length, if present
-  char *jsonstart = strchr(json, '{');
-  //Serial.print(F("jsonstart ")); Serial.println(jsonstart);
-  if (jsonstart == NULL) {
-    Serial.println(F("JSON data missing"));
-    return false;
-  }
-  json = jsonstart;
-
-  // Parse JSON
-  JsonObject& root = jsonBuffer.parseObject(json);
-  if (!root.success()) {
-    Serial.println(F("jsonBuffer.parseObject() failed"));
-    return false;
-  }
-
-  // Extract weather info from parsed JSON
-  JsonObject& current = root["current_observation"];
-  temp_f = current["temp_f"];  // Was `const float temp_f = current["temp_f"];`
-  //Serial.print(temp_f, 1); Serial.print(F(" F "));
-
-  return true;
-}
-
 void sendTemps()
 {
   sensors.requestTemperatures(); // Polls the sensors
-  float tempRA = sensors.getTempF(ds18b20RA);
-  float tempSA = sensors.getTempF(ds18b20SA);
+  tempRA = sensors.getTempF(ds18b20RA);
+  tempSA = sensors.getTempF(ds18b20SA);
   tempSplit = tempRA - tempSA;
 
   // RETURN AIR - Blower pin logic voltage reversed due to high pull required on ESP8266-01 GPIOs at startup. Done with a BJT.
@@ -449,7 +387,7 @@ void totalRuntime() // Counts the current blower run session.
   }
   else if (digitalRead(blowerPin) == HIGH && currentRuntimeStint > 0) // Runs once after blower turns OFF (only after running and logging some runtime).
   {
-    // INTENT IS TO ONLY READ FROM THIS IN THE EVENT OF A CHIP RESET
+    // INTENT IS TO ONLY READ FROM THIS IN THE EVENT OF A DEVICE RESET ehhh.... then.. why not put this in setup?!
 
     currentRuntimeStintMin = (currentRuntimeStint / 60);
     eeCurrent = EEPROM.read(eeIndex);
@@ -477,8 +415,6 @@ void timeKeeper()
     if (xStop == 0) // This variable isn't set to zero until the blower runs for the first time after ESP reset.
     {
       runTime = ( (offNow - onNow) / 60 );
-
-      //Blynk.tweet(String("A/C OFF after running ") + runTime + " minutes. " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
       xStop++;
       resetTattle = 1;
     }
@@ -536,8 +472,7 @@ void timeKeeper()
     if (tempSplit <= 15 && secondsCount > alarmTime && alarmFor == 1)
     {
       Blynk.tweet(String("Low split (") + tempSplit + "°F) " + "recorded at " + hour() + ":" + minute() + ":" + second() + " " + month() + "/" + day() + "/" + year());
-      Blynk.notify(String("Low HVAC split: ") + tempSplit + "°F. Call Cool Guys @ 480-313-8893");
-      //terminal.println(String("Low HVAC split: ") + tempSplit + "°F");
+      Blynk.notify(String("Low HVAC split: ") + tempSplit + "°F. Call Wolfgang's");
       alarmFor = 5; // Arbitrary value indicating notification sent and locking out repetitive notifications.
     }
   }
@@ -595,9 +530,6 @@ void countRuntime()
   // Resets the timer on the next day if the blower is running.
   else if (digitalRead(blowerPin) == LOW && todaysDate != day())
   {
-    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total. Outside was " + dailyOutsideHigh + "°F/" + dailyOutsideLow + "°F."); // Tweet total runtime and outdoor high/low.
-    dailyOutsideHigh = 0;
-    dailyOutsideLow = 200;
     yesterdayRuntime = currentRuntimeMin; // Moves today's runtime to yesterday for the app display.
     dayCountLatch = 0; // Allows today's date to be reset.
     currentRuntimeSec = 0; // Reset today's sec timer.
@@ -614,9 +546,6 @@ void countRuntime()
   // Resets the timer on the next day if the blower isn't running.
   else if (digitalRead(blowerPin) == HIGH && todaysDate != day())
   {
-    Blynk.tweet(String("On ") + yesterdaysMonth + "/" + yesterdaysDate + "/" + year() + " the A/C ran for " + currentRuntimeMin + " minutes total. Outside was " + dailyOutsideHigh + "°F/" + dailyOutsideLow + "°F."); // Tweet total runtime and outdoor high/low.
-    dailyOutsideHigh = 0;
-    dailyOutsideLow = 200;
     yesterdayRuntime = currentRuntimeMin;
     dayCountLatch = 0;
     currentRuntimeSec = 0;

@@ -4,12 +4,11 @@ A small project to simply monitor my HVAC system. I do not currently have plans 
 Hardware is a standalone ESP8266-01 and a few DS18B20 1-Wire digital thermometers. ESP8266-01 may be replaced by a larger Pro Mini or ESP-12E as bells and whistles increase.
 
 ## Features
- * Arduino code running on a single ESP-8266 (the little ESP-01 module).
+ * Arduino code running on a single [WeMos D1 Mini](http://www.wemos.cc/Products/d1_mini.html).
  * Monitoring of the air temperature coming into my HVAC unit (return air) and temperature of air after it's cooled (supply air), including a Blynk notification if the unit isn't cooling enough. All temperature sensors are <a href="https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf">Maxim/Dallas DS18B20</a>... a mix of probe-style and bare TO-92 package sensors.
  * Monitoring of HVAC run status. This is done by tapping the 120V supply to a blower motor with a standard phone charger (120VAC to 5VDC), then using a Fairchild 2N3904 NPN Small Signal TO-92 Transistor to reverse the logic from 5V to GND (required as the ESP8266 GPIO I'm using seems to pull itself high on boot and stays highs. If I pull it low the ESP8266 will not boot). A Blynk virtual LCD displays if the HVAC is on or off, and how long it's been on or off. When the unit starts or stops, a timestamped notification is sent to Twitter (using Blynk app).
- * JSON parsing of Weather Undergrounds's API to bring the temperature of a neighbor's <a href="https://www.wunderground.com/personal-weather-station/dashboard?ID=KAZTEMPE29">PWS</a> to my Blynk project. Plan to add a notification when outdoor temp equals indoor temp so I know I can open the doors and windows!
  * EEPROM storage to survive ESP resets.
- * *NEW*: 4-channel DC 5V relay switch module (<a href="http://www.ebay.com/itm/321869298037">source</a>) providing control of Fan Only and Cooling modes. Currently running on a separate ESP-12E unit that will be rolled into this code once my WeMos D1 Mini arrives! Todo: Heating and Bypass-Only (allow ESP to control HVAC *in lieu of* house t-stat).
+ * *Currently on hold*: 4-channel DC 5V relay switch module (<a href="http://www.ebay.com/itm/321869298037">source</a>) providing control of Fan Only and Cooling modes. Todo: Heating and Bypass-Only (allow ESP to control HVAC *in lieu of* house t-stat).
 
 ## Libraries and Resources
 
@@ -22,10 +21,11 @@ blynk-library | BlynkSimpleEsp8266.h, WidgetRTC.h, TimeLib.h | https://github.co
 OneWire | OneWire.h | https://github.com/PaulStoffregen/OneWire
 Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/milesburton/Arduino-Temperature-Control-Library
 ESP8266 board mgr | N/A | [json](http://arduino.esp8266.com/stable/package_esp8266com_index.json) & [instructions](https://github.com/esp8266/Arduino#installing-with-boards-manager)
-ArduinoJson | ArduinoJson.h | https://github.com/bblanchon/ArduinoJson
 EEPROM | EEPROM.h |
 
 Many thanks to all of the people above. [How to edit this.](https://guides.github.com/features/mastering-markdown/)
+
+## Libraries and Resources
 
 ## Testimonials
 From `friend`:

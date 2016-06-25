@@ -25,7 +25,14 @@ EEPROM | EEPROM.h |
 
 Many thanks to all of the people above. [How to edit this.](https://guides.github.com/features/mastering-markdown/)
 
-## Libraries and Resources
+## Pin Assignments
+HW Pin | SW Pin | Purpose 
+------|------|------
+D6 | 12 | Cooling run state. 10K pullup.
+D7 | 13 | DS18B20 array. 4.7K pullup.
+D1 | 5  | *Future* cooling relay.
+D2 | 4  | *Future* heating relay.
+D5 | 14  | *Future* t-stat bypass relay.
 
 ## Testimonials
 From `friend`:

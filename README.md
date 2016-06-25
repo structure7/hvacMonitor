@@ -23,7 +23,7 @@ Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/m
 ESP8266 board mgr | N/A | [json](http://arduino.esp8266.com/stable/package_esp8266com_index.json) & [instructions](https://github.com/esp8266/Arduino#installing-with-boards-manager)
 EEPROM | EEPROM.h |
 
-Many thanks to all of the people above. [How to edit this.](https://guides.github.com/features/mastering-markdown/)
+Many thanks to all the library authors. I know nothing. They do
 
 ## Pin Assignments
 HW Pin | SW Pin | Purpose 
@@ -46,3 +46,6 @@ From `wife`:
 
 From `me`:
 > It's great to have historical data on outside temperatures and see how they impact the inside, as well as notifications if the return air/supply air delta temperature drops too low or is trending that way. I can at least get a jump on possible refrigerant loss, compressor overheat, or other service issue. Toss in a notification when the outside temperature equals my house thermostat target (indicating when I can cut off A/C and open doors/windows) and I might even see a small utility savings. Go team.
+
+
+[How to edit this.](https://guides.github.com/features/mastering-markdown/)

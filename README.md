@@ -33,9 +33,9 @@ D7 | 13 | DS18B20 array. 4.7K pullup.
 D1 | 5  | *Future* cooling relay.
 D2 | 4  | *Future* heating relay.
 D5 | 14 | *Future* t-stat bypass relay.
-D3 | 0  | Note: Be careful use does not conflict with ESP pullup required to set mode.††
-D4 | 2  | Note: Be careful use does not conflict with ESP pullup required to set mode.††
-D8 | 15 | Note: Be careful use does not conflict with ESP pullup required to set mode.††
+D3 | 0  | Note: Be careful use does not conflict with ESP "pull" required to set mode.††
+D4 | 2  | Note: Be careful use does not conflict with ESP "pull" required to set mode.††
+D8 | 15 | Note: Be careful use does not conflict with ESP "pull" required to set mode.††
 
 † "Software pin" = ESP GPIO.</br>
 †† [*About ESP GPIOs and boot modes*](http://www.forward.com.au/pfod/ESP8266/GPIOpins/index.html)

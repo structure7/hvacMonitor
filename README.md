@@ -38,7 +38,7 @@ D4 | 2  | Note: Be careful use does not conflict with ESP "pull" required to set
 D8 | 15 | Note: Be careful use does not conflict with ESP "pull" required to set mode.††
 
 † "Software pin" = ESP GPIO.</br>
-†† [*About ESP GPIOs and boot modes*](http://www.forward.com.au/pfod/ESP8266/GPIOpins/index.html)
+†† [*About ESP GPIOs and boot modes.*](http://www.forward.com.au/pfod/ESP8266/GPIOpins/index.html)
 
 ## Testimonials
 From `friend`:

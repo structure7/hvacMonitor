@@ -26,8 +26,8 @@ EEPROM | EEPROM.h |
 Many thanks to all the library authors. I know nothing. They do.
 
 ## Pin Assignments
-HW Pin | SW Pin† | Purpose 
-------|-------|------
+HW Pin | GPIO† | Purpose 
+------|-----|------
 D6 | 12 | Cooling run state. 10K pullup.
 D7 | 13 | DS18B20 array. 4.7K pullup.
 D1 | 5  | *Future* cooling relay.
@@ -37,7 +37,7 @@ D3 | 0  | Note: Be careful use does not conflict with ESP "pull" required to set
 D4 | 2  | Note: Be careful use does not conflict with ESP "pull" required to set mode.††
 D8 | 15 | Note: Be careful use does not conflict with ESP "pull" required to set mode.††
 
-† "Software pin" = ESP GPIO.</br>
+† ESP8266 GPIO: The pin number used in the IDE.</br>
 †† [*About ESP GPIOs and boot modes.*](http://www.forward.com.au/pfod/ESP8266/GPIOpins/index.html)
 
 ## Testimonials

@@ -23,7 +23,7 @@ Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/m
 ESP8266 board mgr | N/A | [json](http://arduino.esp8266.com/stable/package_esp8266com_index.json) & [instructions](https://github.com/esp8266/Arduino#installing-with-boards-manager)
 EEPROM | EEPROM.h |
 
-Many thanks to all the library authors. I know nothing. They do
+Many thanks to all the library authors. I know nothing. They do.
 
 ## Pin Assignments
 HW Pin | SW Pin† | Purpose 

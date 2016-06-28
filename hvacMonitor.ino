@@ -19,7 +19,7 @@ DallasTemperature sensors(&oneWire);
 DeviceAddress ds18b20RA = { 0x28, 0xEF, 0x97, 0x1E, 0x00, 0x00, 0x80, 0x54 }; // Return air probe - Device address found by going to File -> Examples -> DallasTemperature -> oneWireSearch
 DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; // Supply air probe
 
-char auth[] = "fromBlynkApp";
+char auth[] = "fromBlynkApp"; // HVAC Production
 char ssid[] = "ssid";
 char pass[] = "pw";
 
@@ -66,12 +66,11 @@ int eeCurrent = 1;        // This is the next EEPROM address location that cycle
 int eeWBsum;              // This is the sum of all EEPROM addresses (total runtime stored).
 int eeTodaysStartsCount;  // Records how many times the unit has started today.
 
-
 void setup()
 {
   Serial.begin(9600);
-   WiFi.mode(WIFI_STA);
-   
+  WiFi.mode(WIFI_STA);
+
   //WiFi.softAPdisconnect(true); // Per https://github.com/esp8266/Arduino/issues/676 this turns off AP
   Blynk.begin(auth, ssid, pass);
 
@@ -83,7 +82,8 @@ void setup()
     // Wait until connected
   }
 
-    ArduinoOTA.onStart([]() {
+  // START OTA ROUTINE
+  ArduinoOTA.onStart([]() {
     Serial.println("Start");
   });
   ArduinoOTA.onEnd([]() {
@@ -104,7 +104,8 @@ void setup()
   Serial.println("Ready");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
-
+  // END OTA ROUTINE
+  
   rtc.begin();
 
   EEPROM.begin(201); // EEPROM is zero-index: means addresses 0 to 200 are available (not 1 to 201 or 0 to 201).
@@ -221,7 +222,6 @@ void sfUpdate()
 
     Serial.println();
     Serial.println("closing connection");
-
   }
 }
 
@@ -239,11 +239,13 @@ BLYNK_WRITE(V27) // App button to report uptime
 
     if (minDur < 121)
     {
-      terminal.println(String("HVAC: ") + minDur + " mins ");
+      terminal.print(String("HVAC: ") + minDur + " mins @ ");
+      terminal.println(WiFi.localIP());
     }
     else if (minDur > 120)
     {
-      terminal.println(String("HVAC: ") + hourDur + " hours ");
+      terminal.print(String("HVAC: ") + hourDur + " hrs @ ");
+      terminal.println(WiFi.localIP());
     }
     terminal.flush();
   }
@@ -530,7 +532,6 @@ void countRuntime()
       EEPROM.write(199, 0);                      // Resets how many times the unit has started today.
       EEPROM.commit();
     }
-
 
     if (yesterdayRuntime < 1)
     {

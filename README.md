@@ -9,6 +9,7 @@ Hardware is a WeMos D1 Mini and a few DS18B20 1-Wire digital thermometers. I sta
  * Monitoring of HVAC run status. This is done by tapping the 24VAC t-stat with an ice cube relay to give the WeMos a dry contact to monitor. The Blynk app displays if the HVAC is on or off, and how long it's been on or off. To monitor on/off and temperature activities, information is sent to data.sparkfun.com and share with analog.io to produce some pretty graphs.
  * EEPROM storage to survive ESP resets.
  * OTA Updates: Using BasicOTA. Learned [from this post](https://github.com/esp8266/Arduino/issues/1017#issuecomment-223466025) that a complete power down is required after uploading BasicOTA for the first time. Weird, but whatever. [Ivan](https://github.com/igrr), I have a man crush.
+ * "OTA" serial monitor using Telnet.
  * *Currently on hold*: 4-channel DC 5V relay switch module (<a href="http://www.ebay.com/itm/321869298037">source</a>) providing control of Fan Only and Cooling modes. Todo: Heating and Bypass-Only (allow ESP to control HVAC *in lieu of* house t-stat).
 
 ## Libraries and Resources

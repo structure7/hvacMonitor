@@ -20,6 +20,7 @@ DeviceAddress ds18b20RA = { 0x28, 0xEF, 0x97, 0x1E, 0x00, 0x00, 0x80, 0x54 }; //
 DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; // Supply air probe
 
 char auth[] = "fromBlynkApp"; // HVAC Production
+//char auth[] = "fromBlynkApp"; // HVAC Dev
 char ssid[] = "ssid";
 char pass[] = "pw";
 
@@ -35,12 +36,11 @@ BLYNK_ATTACH_WIDGET(rtc, V8);
 WidgetTerminal terminal(V26);
 
 const int blowerPin = 12;  // WeMos pin D6. Todo: Change blowerPin to coolingPin (also, fanOnlyPin and heatingPin for future).
-int xStop = 1;             // Provides "latching" associated with recording unit start/stop time.
-int xStart = 1;            // Provides "latching" associated with recording unit start/stop time.
-int xFirstRun = 0;         // Think these kinds of things can be their own routines and triggred from void setup().
-int resetTattle = 0;       // Same as above, but might keep this to lockout other things.
-int resetLatch = 0;        // Same! This only functions to set the time and date displayed in-app after hardware restart.
-int rtcWait = 0;           // Due to Blynk RTC start delay...
+bool daySet = FALSE;       // Sets the day once after reset and RTC is set correctly.
+
+bool resetFlag = TRUE;
+bool startFlag = FALSE;
+bool stopFlag = FALSE;
 
 int offHour, offHour24,  // All used to send an HVAC run status string to Blynk's app.
     onHour, onHour24, offMinute, onMinute, offMonth, onMonth, offDay, onDay;
@@ -50,14 +50,14 @@ const int tempSplitSetpoint = 20; // Split lower than this value will send alarm
 int alarmFor = 0;                 // Provides "latching" for high split alarm counting & functionality. 0 is normal. 1 is prealarm. 5 is alarmed and lockout.
 const int splitAlarmTime = 180;   // If a high split persists for this duration (in seconds), notification is sent.
 int alarmTime;                    // Seconds that high split alarm has been active.
-int resetHour, resetMin,          // ALSO BE MOVED to void setup() runOnce deal. Sets the date/time the hardware was reset.
-    resetMonth, resetDay;
 
 int todaysAccumRuntimeSec;            // Today's accumulated runtime in seconds - displays in app.
 int todaysAccumRuntimeMin;            // Today's accumulated runtime in minutes - displays in app.
 int currentCycleSec, currentCycleMin; // If HVAC is running, the duration of the current cycle (non-accumulating).
 int yesterdayRuntime;                 // Sum of yesterday's runtime in minutes - displays in app.
 int todaysDate;                       // Sets today's date related to things that reset at EOD.
+String currentTimeDate;               // Time formatted as "0:00AM on 0/0"
+String startTimeDate, stopTimeDate, resetTimeDate;
 
 float tempRA, tempSA;  // Return and supply air temperatures
 
@@ -83,6 +83,8 @@ void setup()
   }
 
   // START OTA ROUTINE
+  ArduinoOTA.setHostname("esp8266-HVAC");
+
   ArduinoOTA.onStart([]() {
     Serial.println("Start");
   });
@@ -104,11 +106,13 @@ void setup()
   Serial.println("Ready");
   Serial.print("IP address: ");
   Serial.println(WiFi.localIP());
+  Serial.print("MAC address: ");
+  Serial.println(WiFi.macAddress());
   // END OTA ROUTINE
-  
+
   rtc.begin();
 
-  EEPROM.begin(201); // EEPROM is zero-index: means addresses 0 to 200 are available (not 1 to 201 or 0 to 201).
+  EEPROM.begin(201); // EEPROM is zero-indexed: means addresses 0 to 200 are available (not 1 to 201 or 0 to 201).
 
   // START EEPROM WRITEBACK ROUTINE
   if (EEPROM.read(eeIndex) > 1)              // If this is true, than the index has advanced beyond the first position (meaning something was stored there (and maybe higher) to be written back.
@@ -126,10 +130,10 @@ void setup()
   // END EEPROM WRITEBACK ROUTINE
 
   timer.setInterval(2500L, sendTemps);        // Temperature sensor polling and app display refresh interval.
-  timer.setInterval(2500L, sendStatus);       // Unit run status polling interval (for app Current Status display only).
+  timer.setInterval(1234L, sendStatus);       // Unit run status polling interval (for app Current Status display only).
   timer.setInterval(1000L, countRuntime);     // Counts blower runtime for daily accumulation displays.
   timer.setInterval(1000L, totalRuntime);     // Counts blower runtime for daily EEPROM storage.
-  timer.setInterval(500L, timeKeeper);        // Track a cycle start/end time for app display.
+  timer.setInterval(500L, alarmTimer);        // Track a cycle start/end time for app display.
   timer.setInterval(15432L, sfUpdate);        // ~15 sec run status updates to data.sparkfun.com
 
   heartbeatOn();
@@ -284,7 +288,7 @@ BLYNK_WRITE(V19) // App button to reset EEPROM 0-200
   }
 }
 
-BLYNK_WRITE(V20) // App button to reset hardware // THIS WORKING RIGHT HAS SOMETHING TO DO WITH GPIO0. Worked when I had DS18B20 on that pin!
+BLYNK_WRITE(V20) // App button to reset hardware
 {
   int pinData = param.asInt();
 
@@ -332,70 +336,33 @@ void sendTemps()
 
 void sendStatus()
 {
-  if (resetLatch == 0) // Sets ESP start/reset time and date to display in app until blower activity.
-  {
-    resetHour = hour();
-    resetMin = minute();
-    resetMonth = month();
-    resetDay = day();
-    ++resetLatch;
+  if (resetFlag == TRUE && year() != 1970) {                       // Runs once following Arduino reset/start.
+    resetTimeDate = currentTimeDate;
+    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + resetTimeDate);
   }
 
-  // This wonderful mess displays what I need with AM/PM and leading zeros for minutes (for different scenarios).
-  // I've tried more elegant or lean solutions, but they ended up more complex with more lines of code!
-  if (digitalRead(blowerPin) == HIGH && resetTattle == 0 && resetMin > 9)
-  {
-    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + resetHour + ":" + resetMin + " on " + resetMonth + "/" + resetDay);
+  // Purpose: To keep the display showing a system reset state until the HVAC has turned on or off.
+  if (digitalRead(blowerPin) == LOW && resetFlag == TRUE) {        // Runs once following Arduino reset/start if fan is ON.
+    startFlag = TRUE;                                              // Tells the next set of IFs that fan changed state.
+    resetFlag = FALSE;                                             // Locks out this IF and reset IF above.
   }
-  else if (digitalRead(blowerPin) == HIGH && resetTattle == 0 && resetMin < 10)
-  {
-    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + resetHour + ":0" + resetMin + " on " + resetMonth + "/" + resetDay);
+  else if (digitalRead(blowerPin) == HIGH && resetFlag == TRUE) {  // Runs once following Arduino reset/start if fan is OFF.
+    stopFlag = TRUE;
+    resetFlag = FALSE;
   }
-  else if (digitalRead(blowerPin) == LOW && resetTattle == 0 && resetMin > 9)
-  {
-    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + resetHour + ":" + resetMin + " on " + resetMonth + "/" + resetDay);
+
+  // Purpose: To swap between ON and OFF display once per fan state change.
+  if (digitalRead(blowerPin) == HIGH && startFlag == TRUE) {          // OFF, but was running
+    stopTimeDate = currentTimeDate;                                   // Set off time.
+    Blynk.virtualWrite(16, String("HVAC OFF since ") + stopTimeDate); // Write to app.
+    stopFlag = TRUE;                                                  // Ready flag when fan turns on.
+    startFlag = FALSE;                                                // Keep everything locked out until the next cycle.
   }
-  else if (digitalRead(blowerPin) == LOW && resetTattle == 0 && resetMin < 10)
-  {
-    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + resetHour + ":0" + resetMin + " on " + resetMonth + "/" + resetDay);
-  }
-  else if (digitalRead(blowerPin) == HIGH && resetTattle == 1) // Runs when blower is OFF.
-  {
-    if (offHour24 < 12 && offMinute > 9)
-    {
-      Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":" + offMinute + "AM on " + offMonth + "/" + offDay);
-    }
-    else if (offHour24 < 12 && offMinute < 10)
-    {
-      Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":0" + offMinute + "AM on " + offMonth + "/" + offDay);
-    }
-    else if (offHour24 > 11 && offMinute > 9)
-    {
-      Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":" + offMinute + "PM on " + offMonth + "/" + offDay);
-    }
-    else if (offHour24 > 11 && offMinute < 10)
-    {
-      Blynk.virtualWrite(16, String("HVAC OFF since ") + offHour + ":0" + offMinute + "PM on " + offMonth + "/" + offDay);
-    }
-  }
-  else if (digitalRead(blowerPin) == LOW && resetTattle == 1)
-  {
-    if (onHour24 < 12 && onMinute > 9)
-    {
-      Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":" + onMinute + "AM on " + onMonth + "/" + onDay);
-    }
-    else if (onHour24 < 12 && onMinute < 10)
-    {
-      Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":0" + onMinute + "AM on " + onMonth + "/" + onDay);
-    }
-    else if (onHour24 > 11 && onMinute > 9)
-    {
-      Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":" + onMinute + "PM on " + onMonth + "/" + onDay);
-    }
-    else if (onHour24 > 11 && onMinute < 10)
-    {
-      Blynk.virtualWrite(16, String("HVAC ON since ") + onHour + ":0" + onMinute + "PM on " + onMonth + "/" + onDay);
-    }
+  else if (digitalRead(blowerPin) == LOW && stopFlag == TRUE) {    // RUNNING, but was off
+    startTimeDate = currentTimeDate;
+    Blynk.virtualWrite(16, String("HVAC ON since ") + startTimeDate);
+    startFlag = TRUE;
+    stopFlag = FALSE;
   }
 }
 
@@ -424,50 +391,8 @@ void totalRuntime()
   }
 }
 
-void timeKeeper()
+void alarmTimer() // Does the timing for the RA/SA split temperature alarm.
 {
-  if (digitalRead(blowerPin) == HIGH) // Runs when unit is OFF.
-  {
-    // The following records the time the blower started.
-    onHour24 = hour();
-    onHour = hourFormat12();
-    onMinute = minute();
-    onMonth = month();
-    onDay = day();
-
-    if (xStop == 0) // This variable isn't set to zero until the blower runs for the first time after ESP reset.
-    {
-      ++xStop;
-      resetTattle = 1;
-    }
-    xStart = 0;
-  }
-  else if (digitalRead(blowerPin) == LOW) // Runs when unit is ON.  DEV: Why don't I run once on state change and just lock it out?
-  {
-    // The following records the time the blower stopped.
-    offHour24 = hour();
-    offHour = hourFormat12();
-    offMinute = minute();
-    offMonth = month();
-    offDay = day();
-
-    if (xStart == 0)
-    {
-      if (xFirstRun == 0)
-      {
-        ++xFirstRun;
-        ++xStart;
-        resetTattle = 1;
-      }
-      else
-      {
-        ++xStart;
-      }
-    }
-    xStop = 0;
-  }
-
-  // Does the timing for the RA/SA split temperature alarm.
   if (digitalRead(blowerPin) == LOW) // Blower is running.
   {
     int secondsCount = (millis() / 1000); // Running count that the alarm will reference after the first high split is noticed.
@@ -501,13 +426,26 @@ void timeKeeper()
 
 void countRuntime()
 {
-  if (year() != 1970) // Doesn't start counting until RTC is started correctly.
+  if (year() != 1970) // Doesn't start until RTC is set correctly.
   {
 
-    if (rtcWait == 0) // Sets the date (once per hardware restart) now that RTC is correct.
-    {
+    // Below gives me leading zeros on minutes and AM/PM.
+    if (minute() > 9 && hour() > 11) {
+      currentTimeDate = String(hourFormat12()) + ":" + minute() + "PM on " + month() + "/" + day();
+    }
+    else if (minute() < 10 && hour() > 11) {
+      currentTimeDate = String(hourFormat12()) + ":0" + minute() + "PM on " + month() + "/" + day();
+    }
+    else if (minute() > 9 && hour() < 12) {
+      currentTimeDate = String(hourFormat12()) + ":" + minute() + "AM on " + month() + "/" + day();
+    }
+    else if (minute() < 10 && hour() < 12) {
+      currentTimeDate = String(hourFormat12()) + ":0" + minute() + "AM on " + month() + "/" + day();
+    }
+
+    if (daySet == FALSE) { // Sets the date (once per hardware restart) now that RTC is correct.
       todaysDate = day();
-      ++rtcWait;
+      daySet = TRUE;
     }
 
     if (digitalRead(blowerPin) == LOW && todaysDate == day()) // Accumulates seconds unit is running today.
@@ -541,7 +479,6 @@ void countRuntime()
     {
       Blynk.virtualWrite(14, String(yesterdayRuntime) + " minutes");
     }
-
 
     if (todaysAccumRuntimeSec < 1)
     {

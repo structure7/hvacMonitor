@@ -1,15 +1,14 @@
 # hvacMonitor
 A small project to simply monitor my HVAC system with future plans to add control.<br>
 <p align="center"><img src="http://i.imgur.com/th3gq05.png"/></p>
-Hardware is a WeMos D1 Mini and a few DS18B20 1-Wire digital thermometers. I started out with an ESP-01 but, as always, I wanted more!
+Hardware is a WeMos D1 Mini and a few DS18B20 digital thermometers. I started out with an ESP-01 but, as always, I wanted more!
 
 ## Features
  * Arduino code running on a single [WeMos D1 Mini](http://www.wemos.cc/Products/d1_mini.html).
  * Monitoring of the air temperature coming into my HVAC unit (return air) and temperature of air after it's cooled (supply air), including a Blynk notification if the unit isn't cooling enough. All temperature sensors are <a href="https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf">Maxim/Dallas DS18B20</a>... a mix of probe-style and bare TO-92 package sensors.
  * Monitoring of HVAC run status. This is done by tapping the 24VAC t-stat with an ice cube relay to give the WeMos a dry contact to monitor. The Blynk app displays if the HVAC is on or off, and how long it's been on or off. To monitor on/off and temperature activities, information is sent to data.sparkfun.com and share with analog.io to produce some pretty graphs.
- * EEPROM storage to survive ESP resets.
- * OTA Updates: Using BasicOTA. Learned [from this post](https://github.com/esp8266/Arduino/issues/1017#issuecomment-223466025) that a complete power down is required after uploading BasicOTA for the first time. Weird, but whatever. [Ivan](https://github.com/igrr), I have a man crush.
- * "OTA" serial monitor using Telnet.
+ * EEPROM storage to survive ESP resets. Will probably transition to using Blynk vPins.
+ * OTA Updates: Using BasicOTA. Learned [from this post](https://github.com/esp8266/Arduino/issues/1017#issuecomment-223466025) that a complete power down is required after uploading BasicOTA for the first time. Weird, but whatever. [Thank you Ivan!](https://github.com/igrr).
  * *Currently on hold*: 4-channel DC 5V relay switch module (<a href="http://www.ebay.com/itm/321869298037">source</a>) providing control of Fan Only and Cooling modes. Todo: Heating and Bypass-Only (allow ESP to control HVAC *in lieu of* house t-stat).
 
 ## Libraries and Resources

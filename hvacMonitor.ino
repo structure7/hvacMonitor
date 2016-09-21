@@ -8,11 +8,10 @@
 #include <BlynkSimpleEsp8266.h> // 6/22/16 Rev: Includes edit of this file to expand virtual pins
 #include <TimeLib.h>            // Used by WidgetRTC.h
 #include <WidgetRTC.h>          // Blynk's RTC
-#include <EEPROM.h>             // EEPROM library - keep HVAC total runtime values to survive restarts
 
 #include <OneWire.h>            // Temperature sensor library
 #include <DallasTemperature.h>  // Temperature sensor library
-#define ONE_WIRE_BUS 13          // WeMos pin D7
+#define ONE_WIRE_BUS 12         // WeMos pin D6
 OneWire oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 
@@ -25,9 +24,10 @@ char pass[] = "pw";
 
 char myEmail[] = "email";
 
-char* host = "data.sparkfun.com";
-char* streamId   = "publicKey";
-char* privateKey = "privateKey";
+// All sparkfun updates now handled by Blynk's WebHook widget
+//char* host = "data.sparkfun.com";
+//char* streamId   = "publicKey";
+//char* privateKey = "privateKey";
 
 SimpleTimer timer;
 
@@ -35,9 +35,10 @@ WidgetRTC rtc;
 BLYNK_ATTACH_WIDGET(rtc, V8);
 WidgetTerminal terminal(V26);
 
-const int blowerPin = 12;  // WeMos pin D6. Todo: Change blowerPin to coolingPin (also, fanOnlyPin and heatingPin for future).
+const int blowerPin = 13;  // WeMos pin D7.
 bool daySet = FALSE;       // Sets the day once after reset and RTC is set correctly.
 
+bool runOnce = TRUE;
 bool resetFlag = TRUE;        // TRUE when the hardware has been reset.
 bool startFlag = FALSE;       // TRUE when the A/C has started.
 bool stopFlag = FALSE;        // TRUE when the A/C has stopped.
@@ -52,13 +53,14 @@ int alarmFor = 0;                 // Provides "latching" for high split alarm co
 const int splitAlarmTime = 180;   // If a high split persists for this duration (in seconds), notification is sent.
 int alarmTime;                    // Seconds that high split alarm has been active.
 
-int todaysAccumRuntimeSec;            // Today's accumulated runtime in seconds - displays in app.
-int todaysAccumRuntimeMin;            // Today's accumulated runtime in minutes - displays in app.
+long todaysAccumRuntimeSec;           // Today's accumulated runtime in seconds - displayed in app as minutes.
 int currentCycleSec, currentCycleMin; // If HVAC is running, the duration of the current cycle (non-accumulating).
 int yesterdayRuntime;                 // Sum of yesterday's runtime in minutes - displays in app.
+int hvacTodaysStartCount;             // Records how many times the unit has started today.
 int todaysDate;                       // Sets today's date related to things that reset at EOD.
 String currentTimeDate;               // Time formatted as "0:00AM on 0/0"
 String startTimeDate, stopTimeDate, resetTimeDate;
+int runStatus;                        // Used for graphing. 40 == running. NULL == off.
 
 long currentFilterSec;                // Filter age based on unit runtime in seconds (stored in vPin). Seconds used for finer resolution.
 long currentFilterHours;              // Filter age based on unit runtime in hours.
@@ -67,12 +69,7 @@ bool filterConfirmFlag = FALSE;       // Used to enter/exit the filter change mo
 const int filterChangeHours = 300L;   // Duration in hours between filter changes. Up for debate and experimentation!
 bool changeFilterAlarm = FALSE;       // TRUE if filter needs to be changed, until reset.
 
-double tempRA, tempSA;    // Return and supply air temperatures
-
-const int eeIndex = 0;          // This is the EEPROM address location that keeps track of next EEPROM address available for storing a single blower cycle runtime.
-int eeCurrent = 1;              // This is the next EEPROM address location that cycle runtime will be stored to.
-int eeWBsum;                    // This is the sum of all EEPROM addresses (total runtime stored).
-int eeTodaysStartsCount;        // Records how many times the unit has started today.
+double tempRA, tempSA;                // Return and supply air temperatures
 
 void setup()
 {
@@ -119,147 +116,83 @@ void setup()
   // END OTA ROUTINE
 
   rtc.begin();
-  setSyncInterval(300);
-
-  EEPROM.begin(512); // EEPROM is zero-indexed: means addresses 0 to 200 are available (not 1 to 201 or 0 to 201).
-
-  // START EEPROM WRITEBACK ROUTINE
-  if (EEPROM.read(eeIndex) > 1)              // If this is true, than the index has advanced beyond the first position (meaning something was stored to be written back.
-  {
-    for (int i = 1 ; i < 199 ; i++) {
-      eeWBsum += EEPROM.read(i);             // Add up values in addresses 1 through 198 and stick into eeWBsum.
-
-    }
-    eeTodaysStartsCount = EEPROM.read(199);    // Reads how many times the unit has started today (if any runs have been recorded).
-  }
-
-  todaysAccumRuntimeSec = (eeWBsum * 60);         // Writes seconds of today's accumulated runtime back to variable.
-  todaysAccumRuntimeMin = eeWBsum;                // Writes minutes of today's accumulated runtime back to variable (used for app runtime display only).
-  yesterdayRuntime = (EEPROM.read(200) * 4);      // Writes minutes of yesterday's accumulated runtime back to variable (use for app runtime display only).
-  // END EEPROM WRITEBACK ROUTINE
+  //setSyncInterval(120);
 
   timer.setInterval(2500L, sendTemps);        // Temperature sensor polling and app display refresh interval.
   timer.setInterval(1234L, sendStatus);       // Unit run status polling interval (for app Current Status display only).
   timer.setInterval(1000L, countRuntime);     // Counts blower runtime for daily accumulation displays.
-  timer.setInterval(1000L, totalRuntime);     // Counts blower runtime for daily EEPROM storage.
+  timer.setInterval(1000L, totalRuntime);     // Counts blower runtime.
+  timer.setInterval(1000L, setClockTime);     // Creates a current time with leading zeros.
   timer.setInterval(500L, alarmTimer);        // Track a cycle start/end time for app display.
-  timer.setInterval(15432L, sfUpdate);        // ~15 sec run status updates to data.sparkfun.com
-  timer.setInterval(30000L, halfMinTasks);    // Things here happen once every 30 seconds.
-
-  Blynk.syncVirtual(V11);                     // "Syncs back" pin data holding seconds that filter has been used.
-  Blynk.syncVirtual(V17);                     // "Syncs back" pin data holding Unix time that filter was changed.
+  timer.setInterval(15432L, sfWebhook);       // ~15 sec run status updates to data.sparkfun.com.
+  //timer.setInterval(30000L, debugVpins);
+  timer.setTimeout(100, vsync1);              // Syncs back vPins to survive hardware reset.
+  timer.setTimeout(5000, vsync2);             // Syncs back vPins to survive hardware reset.
 }
 
-void loop()  // To keep Blynk happy, keep Blynk tasks out of the loop.
+void debugVpins()
+{
+  Serial.println(String("V110 local variable (hvacTodaysStartCount) is: ") + hvacTodaysStartCount);
+  Serial.println(String("V111 local variable (todaysAccumRuntimeSec) is: ") + todaysAccumRuntimeSec);
+  Serial.println(String("V112 local variable (yesterdayRuntime) is: ") + yesterdayRuntime);
+  Serial.println(String("V11 local variable (currentFilterSec) is: ") + currentFilterSec);
+}
+
+void loop()  // To keep Blynk happy, keep most tasks out of the loop.
 {
   Blynk.run();
   timer.run();
   ArduinoOTA.handle();
 }
 
-void halfMinTasks() {
-  if (digitalRead(blowerPin) == LOW)
-  {
-    Blynk.virtualWrite(11, currentFilterSec);   // Records how many seconds air has moved through the filter. Used to tecord "milage" in lieu of only time.
-  }
+void vsync1()
+{
+  Blynk.syncVirtual(V110);    // hvacTodaysStartCount
+  Blynk.syncVirtual(V111);    // todaysAccumRuntimeSec
+}
+
+void vsync2()
+{
+  Blynk.syncVirtual(V112);    // yesterdayRuntime
+  Blynk.syncVirtual(V11);     // currentFilterSec
+}
+
+BLYNK_WRITE(V110)
+{
+  hvacTodaysStartCount = param.asInt();
+}
+
+BLYNK_WRITE(V111)
+{
+  todaysAccumRuntimeSec = param.asLong();
+}
+
+BLYNK_WRITE(V112)
+{
+  yesterdayRuntime = param.asInt();
 }
 
 BLYNK_WRITE(V11)
 {
-  currentFilterSec = param.asLong();       // "Writes back" pin data holding seconds that filter has been used.
+  currentFilterSec = param.asLong();
 }
 
-BLYNK_WRITE(V17)
-{
-  timeFilterChanged = param.asLong();      // "Writes back" pin data holding Unix time that filter was changed.
-}
-
-void sfUpdate()                           // Send updates to data.sparkfun.com for graphing in analog.io
-{
-  if (digitalRead(blowerPin) == LOW)
+void sfWebhook() {
+  if (digitalRead(blowerPin) == LOW)        // If HVAC blower motor is running...
   {
-    int runStatus = 40;
-
-    Serial.print("connecting to ");
-    Serial.println(host);
-
-    // Use WiFiClient class to create TCP connections
-    WiFiClient client;
-    const int httpPort = 80;
-    if (!client.connect(host, httpPort)) {
-      Serial.println("connection failed");
-      return;
-    }
-
-    Serial.print("Requesting...");
-
-    // This will send the request to the server
-    client.print(String("GET ") + "/input/" + streamId + "?private_key=" + privateKey + "&returntemp=" + tempRA + "&runstatus=" + runStatus + "&supplytemp=" + tempSA + " HTTP/1.1\r\n" +
-                 "Host: " + host + "\r\n" +
-                 "Connection: close\r\n\r\n");
-    unsigned long timeout = millis();
-    while (client.available() == 0) {
-      if (millis() - timeout > 10000) {
-        Serial.println(">>> Client Timeout !");
-        client.stop();
-        return;
-      }
-    }
-
-    // Read all the lines of the reply from server and print them to Serial
-    while (client.available()) {
-      String line = client.readStringUntil('\r');
-      Serial.print(line);
-    }
-
-    Serial.println();
-    Serial.println("closing connection");
+    runStatus = 40;
+  }
+  else if (digitalRead(blowerPin) == HIGH)  // If HVAC blower motor if off...
+  {
+    runStatus = NULL;
   }
 
-  else if (digitalRead(blowerPin) == HIGH)
-  {
-    int runStatus = NULL;
-
-    Serial.print("connecting to ");
-    Serial.println(host);
-
-    // Use WiFiClient class to create TCP connections
-    WiFiClient client;
-    const int httpPort = 80;
-    if (!client.connect(host, httpPort)) {
-      Serial.println("connection failed");
-      return;
-    }
-
-    Serial.print("Requesting...");
-
-    // This will send the request to the server
-    client.print(String("GET ") + "/input/" + streamId + "?private_key=" + privateKey + "&returntemp=" + tempRA + "&runstatus=" + runStatus + "&supplytemp=" + tempSA + " HTTP/1.1\r\n" +
-                 "Host: " + host + "\r\n" +
-                 "Connection: close\r\n\r\n");
-    unsigned long timeout = millis();
-    while (client.available() == 0) {
-      if (millis() - timeout > 5000) {
-        Serial.println(">>> Client Timeout !");
-        client.stop();
-        return;
-      }
-    }
-
-    // Read all the lines of the reply from server and print them to Serial
-    while (client.available()) {
-      String line = client.readStringUntil('\r');
-      Serial.print(line);
-    }
-
-    Serial.println();
-    Serial.println("closing connection");
-  }
+  Blynk.virtualWrite(67, String("returntemp=") + tempRA + "&runstatus=" + runStatus + "&supplytemp=" + tempSA);
 }
 
 BLYNK_WRITE(V18)              // App button to display all terminal commands available
 {
-    int pinData = param.asInt();
+  int pinData = param.asInt();
 
   if (pinData == 0) // Triggers when button is released only
   {
@@ -269,7 +202,6 @@ BLYNK_WRITE(V18)              // App button to display all terminal commands ava
     terminal.println(" ");
     terminal.println(" filter : HVAC filter menu");
     terminal.println(" WU : Change WU API station");
-    terminal.println(" manual : Manually update V22/V23/V24");
     terminal.println(" ");
     terminal.flush();
   }
@@ -351,27 +283,6 @@ BLYNK_WRITE(V26)
   terminal.flush();
 }
 
-BLYNK_WRITE(V19) // App button to reset EEPROM 0-200
-{
-  int pinData = param.asInt();
-
-  if (pinData == 0)
-  {
-    Serial.println("EEPROM RESET");
-    for (int i = 0 ; i < 201 ; i++) {
-      EEPROM.write(i, 0);
-    }
-    EEPROM.write(eeIndex, 1); // Define address 1 as the starting location.
-    EEPROM.commit();
-
-    todaysAccumRuntimeSec = 0;  // Also zeros out variables so display is correct.
-    todaysAccumRuntimeMin = 0;
-    yesterdayRuntime = 0;
-    eeTodaysStartsCount = 0;
-    eeWBsum = 0;
-  }
-}
-
 BLYNK_WRITE(V20) // App button to reset hardware
 {
   int pinData = param.asInt();
@@ -393,6 +304,7 @@ void sendTemps()
   if (tempRA >= 0 && tempRA <= 120 && digitalRead(blowerPin) == LOW)        // If temp 0-120F and blower running...
   {
     Blynk.virtualWrite(0, tempRA);                                          // ...display the temp...
+
   }
   else if (tempRA >= 0 && tempRA <= 120 && digitalRead(blowerPin) == HIGH)  // ...unless it's not running, then...
   {
@@ -423,6 +335,7 @@ void sendStatus()
   if (resetFlag == TRUE && year() != 1970) {                       // Runs once following Arduino reset/start.
     resetTimeDate = currentTimeDate;
     Blynk.virtualWrite(16, String("SYSTEM RESET at ") + resetTimeDate);
+    Blynk.setProperty(V16, "color", "#D3435C");
   }
 
   // Purpose: To keep the display showing a system reset state until the HVAC has turned on or off.
@@ -439,6 +352,9 @@ void sendStatus()
   if (digitalRead(blowerPin) == HIGH && startFlag == TRUE) {          // OFF, but was running
     stopTimeDate = currentTimeDate;                                   // Set off time.
     Blynk.virtualWrite(16, String("HVAC OFF since ") + stopTimeDate); // Write to app.
+    Blynk.setProperty(V0, "color", "#808080");
+    Blynk.setProperty(V1, "color", "#808080");
+    Blynk.setProperty(V16, "color", "#808080");
 
     if ( (filterChangeHours - currentFilterHours ) <= 0 && changeFilterAlarm == FALSE) {
       Blynk.email(myEmail, "CHANGE A/C FILTER", "Change the A/C filter (20x25x1 1085 microparticle/MERV 11) and reset the timer.");
@@ -451,6 +367,10 @@ void sendStatus()
   else if (digitalRead(blowerPin) == LOW && stopFlag == TRUE) {    // RUNNING, but was off
     startTimeDate = currentTimeDate;
     Blynk.virtualWrite(16, String("HVAC ON since ") + startTimeDate);
+    Blynk.setProperty(V0, "color", "#D3435C");  // return air text turns red, and...
+    Blynk.setProperty(V1, "color", "#5F7CD8");
+    Blynk.setProperty(V16, "color", "#23C48E");
+
     startFlag = TRUE;
     stopFlag = FALSE;
   }
@@ -460,18 +380,14 @@ void totalRuntime()
 {
   if (digitalRead(blowerPin) == LOW) // If fan is running...
   {
-    ++currentCycleSec;                          // accumulate the running time, however...
+    ++currentCycleSec;               // accumulate the running time, however...
     currentCycleMin = (currentCycleSec / 60);
   }
   else if (digitalRead(blowerPin) == HIGH && currentCycleSec > 0) // if fan is off but recorded some runtime...
   {
-    EEPROM.write(199, ++eeTodaysStartsCount);   // Stores how many times the unit has started today... adds one start.
-    eeCurrent = EEPROM.read(eeIndex);           // Set eeCurrent as the value of the next available register. (Also, allows display of number of runs to survive reset.)
-    EEPROM.write(eeCurrent, currentCycleMin);   // Write runtime to EEPROM
-    EEPROM.write(eeIndex, ++eeCurrent);         // Advance to next EEPROM register (for next run) and write that next register to EEPROM
-    EEPROM.commit();                            // Make it so
+    Blynk.virtualWrite(110, ++hvacTodaysStartCount);              // Stores how many times the unit has started today... adds one start.
 
-    currentCycleSec = 0;                        // Reset the current cycle clock
+    currentCycleSec = 0;                                          // Reset the current cycle clock
     currentCycleMin = 0;
   }
 }
@@ -514,7 +430,7 @@ void alarmTimer() // Does the timing for the RA/SA split temperature alarm.
   }
 }
 
-void countRuntime()
+void setClockTime()
 {
   if (year() != 1970) // Doesn't start until RTC is set correctly.
   {
@@ -532,6 +448,13 @@ void countRuntime()
     else if (minute() < 10 && hour() < 12) {
       currentTimeDate = String(hourFormat12()) + ":0" + minute() + "AM on " + month() + "/" + day();
     }
+  }
+}
+
+void countRuntime()
+{
+  if (year() != 1970) // Doesn't start until RTC is set correctly.
+  {
 
     if (daySet == FALSE) {              // Sets the date (once per hardware restart) now that RTC is correct.
       todaysDate = day();
@@ -540,29 +463,21 @@ void countRuntime()
 
     if (digitalRead(blowerPin) == LOW && todaysDate == day()) // Accumulates seconds unit is running today.
     {
-      ++todaysAccumRuntimeSec;                                // Counts today's AC runtime in seconds.
-      todaysAccumRuntimeMin = (todaysAccumRuntimeSec / 60);   // Converts those seconds to minutes for display.
-
+      ++todaysAccumRuntimeSec;                          // Counts today's AC runtime in seconds.
+      Blynk.virtualWrite(111, todaysAccumRuntimeSec);
       ++currentFilterSec;                               // Counts how many seconds filter is used based on AC runtime.
+      Blynk.virtualWrite(11, currentFilterSec);
       currentFilterHours = (currentFilterSec / 3600);   // Converts those seconds to hours for display and other uses.
     }
     else if (todaysDate != day())
     {
-      yesterdayRuntime = todaysAccumRuntimeMin; // Moves today's runtime to yesterday for the app display.
-      todaysAccumRuntimeSec = 0; // Reset today's sec timer.
-      todaysAccumRuntimeMin = 0; // Reset today's min timer.
-      eeTodaysStartsCount = 0;   // Reset how many times unit has started today.
+      yesterdayRuntime = (todaysAccumRuntimeSec / 60);  // Moves today's runtime to yesterday for the app display.
+      todaysAccumRuntimeSec = 0;                        // Reset today's sec timer.
+      Blynk.virtualWrite(111, todaysAccumRuntimeSec);
+      hvacTodaysStartCount = 0;                         // Reset how many times unit has started today.
       todaysDate = day();
-
-      // Resets EEPROM at the end of the day (except for yesterday's runtime)
-      for (int i = 0 ; i < 200 ; i++) {
-        EEPROM.write(i, 0);
-      }
-      EEPROM.write(eeIndex, 1);                                   // Define address 1 as the starting location.
-      EEPROM.write(200, (yesterdayRuntime / 4));                  // Write yesterday's runtime to EEPROM
-      EEPROM.write(199, 0);                                       // Resets how many times the unit has started today.
-      EEPROM.commit();
     }
+
 
     if (yesterdayRuntime < 1)               // Displays yesterday's runtime in app, or 'None' is there's none.
     {
@@ -573,22 +488,21 @@ void countRuntime()
       Blynk.virtualWrite(14, String(yesterdayRuntime) + " minutes");
     }
 
-    if (todaysAccumRuntimeSec < 1)          // Displays today's runtime in app, or 'None' is there's none.
+    if (todaysAccumRuntimeSec == 0)          // Displays today's runtime in app, or 'None' is there's none.
     {
       Blynk.virtualWrite(15, "None");
     }
-    else if (todaysAccumRuntimeMin > 0 && eeCurrent < 1)
+    else if (todaysAccumRuntimeSec > 0 && hvacTodaysStartCount == 0)
     {
-      Blynk.virtualWrite(15, String(todaysAccumRuntimeMin) + " minutes");
+      Blynk.virtualWrite(15, String(todaysAccumRuntimeSec / 60) + " minutes");
     }
-    else if (todaysAccumRuntimeMin > 0 && eeCurrent > 0)
+    else if (todaysAccumRuntimeSec > 0 && hvacTodaysStartCount > 0)
     {
-      Blynk.virtualWrite(15, String(todaysAccumRuntimeMin) + " mins (" + (eeTodaysStartsCount) + " runs)");
+      Blynk.virtualWrite(15, String(todaysAccumRuntimeSec / 60) + " mins (" + (hvacTodaysStartCount) + " runs)");
     }
   }
 
-  Blynk.virtualWrite(10, String( filterChangeHours - currentFilterHours ) + " hours"); // Displays how many hours are left on the filter.
-
+  Blynk.virtualWrite(10, String( filterChangeHours - (currentFilterSec / 3600) ) + " hours"); // Displays how many hours are left on the filter.
 
   if (second() >= 0 && second() <= 5)     // Used to monitor uptime. All devices report minute. Another device confirms all reported minutes match.
   {

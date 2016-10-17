@@ -7,7 +7,7 @@ Hardware is a WeMos D1 Mini and a few DS18B20 digital thermometers. I started ou
  * Arduino code running on a single [WeMos D1 Mini](http://www.wemos.cc/Products/d1_mini.html).
  * Monitoring of the air temperature coming into my HVAC unit (return air) and temperature of air after it's cooled (supply air), including a Blynk notification if the unit isn't cooling enough. All temperature sensors are <a href="https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf">Maxim/Dallas DS18B20</a>... a mix of probe-style and bare TO-92 package sensors.
  * Monitoring of HVAC run status. This is done by tapping the 24VAC t-stat with an ice cube relay to give the WeMos a dry contact to monitor. The Blynk app displays if the HVAC is on or off, and how long it's been on or off. To monitor on/off and temperature activities, information is sent to data.sparkfun.com and share with analog.io to produce some pretty graphs.
- * EEPROM storage to survive ESP resets. Will probably transition to using Blynk vPins.
+ * All data that needs to survive a hardware reset is stored to Blynk virtual pins, then synced back after a reset.
  * OTA Updates: Using BasicOTA. Learned [from this post](https://github.com/esp8266/Arduino/issues/1017#issuecomment-223466025) that a complete power down is required after uploading BasicOTA for the first time. Weird, but whatever. [Thank you Ivan!](https://github.com/igrr)
  * *Currently on hold*: 4-channel DC 5V relay switch module (<a href="http://www.ebay.com/itm/321869298037">source</a>) providing control of Fan Only and Cooling modes. Todo: Heating and Bypass-Only (allow ESP to control HVAC *in lieu of* house t-stat).
 
@@ -22,14 +22,13 @@ blynk-library | BlynkSimpleEsp8266.h, WidgetRTC.h, TimeLib.h | https://github.co
 OneWire | OneWire.h | https://github.com/PaulStoffregen/OneWire
 Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/milesburton/Arduino-Temperature-Control-Library
 ESP8266 board mgr | N/A | [json](http://arduino.esp8266.com/stable/package_esp8266com_index.json) & [instructions](https://github.com/esp8266/Arduino#installing-with-boards-manager)
-EEPROM | EEPROM.h |
 
 Many thanks to all the library authors. I know nothing. They do.
 
 ## Pin Assignments
 HW Pin | GPIO† | Purpose 
 ------|-----|------
-D6 | 12 | Cooling run state. 10KΩ pullup.
+D6 | 12 | HVAC fan (cooling) run state. 10KΩ pullup.
 D7 | 13 | DS18B20 array. 4.7KΩ pullup.
 D1 | 5  | *Future* cooling relay.
 D2 | 4  | *Future* heating relay.

@@ -188,6 +188,35 @@ void sfWebhook() {
   }
 
   Blynk.virtualWrite(67, String("returntemp=") + tempRA + "&runstatus=" + runStatus + "&supplytemp=" + tempSA);
+
+  // The following changes the color of Time Until Filter Change in app... placed here because the timing.
+  if (filterChangeHours - (currentFilterSec / 3600) > 24 )
+  {
+    Blynk.setProperty(V10, "color", "#23C48E");   // Green
+  }
+  else if (filterChangeHours - (currentFilterSec / 3600) < 24 &&  filterChangeHours - (currentFilterSec / 3600) > 8)
+  {
+    Blynk.setProperty(V10, "color", "#ED9D00");   // Yellow
+  }
+  else if (filterChangeHours - (currentFilterSec / 3600) < 8)
+  {
+    Blynk.setProperty(V10, "color", "#D3435C");   // Red
+  }
+}
+
+BLYNK_WRITE(V19)              // App button to display all terminal commands available
+{
+  int pinData = param.asInt();
+
+  if (pinData == 0)
+  {
+    Blynk.setProperty(V16, "label", "Current Status:                    Hi/Lo temps above are last 24h");
+  }
+
+  if (pinData == 1)
+  {
+    Blynk.setProperty(V16, "label", "Current Status:                    Hi/Lo temps above are since midnight");
+  }
 }
 
 BLYNK_WRITE(V18)              // App button to display all terminal commands available
@@ -472,6 +501,7 @@ void countRuntime()
     else if (todaysDate != day())
     {
       yesterdayRuntime = (todaysAccumRuntimeSec / 60);  // Moves today's runtime to yesterday for the app display.
+      Blynk.virtualWrite(112, yesterdayRuntime);        // Record yesterday's runtime to vPin.
       todaysAccumRuntimeSec = 0;                        // Reset today's sec timer.
       Blynk.virtualWrite(111, todaysAccumRuntimeSec);
       hvacTodaysStartCount = 0;                         // Reset how many times unit has started today.
@@ -508,4 +538,60 @@ void countRuntime()
   {
     Blynk.virtualWrite(100, minute());
   }
+}
+
+int todayTrends[96];  // 0 represents the first 15 minutes of the day, and so on. Will have 96 elements.
+int trackTrendIndex;
+int yesterdayTrends[96];
+bool trackTrendResetFlag;
+bool trackTrendMinuteFlag;
+
+void trackTrends()
+{
+  if (hour() == 0 && trackTrendResetFlag  == 0)   // At midnight...
+  {
+    int i;
+    for (i = 0; i < 97; i++) {                    // ...transfer todayTrends to yesterdayTrends.
+      yesterdayTrends[i] = todayTrends[i];
+    }
+
+    trackTrendIndex = 0;                          // Reset array index to 0.
+    trackTrendResetFlag = 1;
+  }
+  else if (hour() == 1)                           // Resets flag for the next midnight "reset"
+  {
+    trackTrendResetFlag = 0;
+  }
+
+  if (minute() == 0 && hour() == 0)
+  {
+    // Do nothing... this would record the previous day runtime (23:45 - 00:00) and we don't want that here.
+  }
+  else if ( (minute() == 0 || minute() == 15 || minute() == 30 || minute() == 45) && trackTrendMinuteFlag == 0)
+  {
+    todayTrends[trackTrendIndex] = (todaysAccumRuntimeSec / 60);
+
+    if (todayTrends[trackTrendIndex] = yesterdayTrends[trackTrendIndex])
+    {
+      // "Trending same runtime as yesterday"
+    }
+    else if (todayTrends[trackTrendIndex] > yesterdayTrends[trackTrendIndex])
+    {
+      // "Trending higher runtime today"
+    }
+    else if (todayTrends[trackTrendIndex] < yesterdayTrends[trackTrendIndex])
+    {
+      // "Trending lower runtime today"
+    }
+
+    ++trackTrendIndex;
+    trackTrendMinuteFlag = 1;
+  }
+
+
+  if (minute() == 1 || minute() == 16 || minute() == 31 || minute() == 46)
+  {
+    trackTrendMinuteFlag = 0;
+  }
+
 }

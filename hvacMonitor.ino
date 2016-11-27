@@ -24,10 +24,9 @@ char pass[] = "pw";
 
 char myEmail[] = "email";
 
-// All sparkfun updates now handled by Blynk's WebHook widget
-//char* host = "data.sparkfun.com";
-//char* streamId   = "publicKey";
-//char* privateKey = "privateKey";
+char* hostSF = "raspi";
+char* streamId   = "publicKey";
+char* privateKey = "privateKey";
 
 SimpleTimer timer;
 
@@ -124,7 +123,7 @@ void setup()
   timer.setInterval(1000L, totalRuntime);     // Counts blower runtime.
   timer.setInterval(1000L, setClockTime);     // Creates a current time with leading zeros.
   timer.setInterval(500L, alarmTimer);        // Track a cycle start/end time for app display.
-  timer.setInterval(15432L, sfWebhook);       // ~15 sec run status updates to data.sparkfun.com.
+  timer.setInterval(15432L, phantSend);       // ~15 sec run status updates to Phant runnting on a local Raspberry Pi.
   //timer.setInterval(30000L, debugVpins);
   timer.setTimeout(100, vsync1);              // Syncs back vPins to survive hardware reset.
   timer.setTimeout(5000, vsync2);             // Syncs back vPins to survive hardware reset.
@@ -177,7 +176,7 @@ BLYNK_WRITE(V11)
   currentFilterSec = param.asLong();
 }
 
-void sfWebhook() {
+void phantSend() {
   if (digitalRead(blowerPin) == LOW)        // If HVAC blower motor is running...
   {
     runStatus = 40;
@@ -186,8 +185,6 @@ void sfWebhook() {
   {
     runStatus = NULL;
   }
-
-  Blynk.virtualWrite(67, String("returntemp=") + tempRA + "&runstatus=" + runStatus + "&supplytemp=" + tempSA);
 
   // The following changes the color of Time Until Filter Change in app... placed here because the timing.
   if (filterChangeHours - (currentFilterSec / 3600) > 24 )
@@ -202,9 +199,46 @@ void sfWebhook() {
   {
     Blynk.setProperty(V10, "color", "#D3435C");   // Red
   }
+
+  //Blynk.virtualWrite(67, String("returntemp=") + tempRA + "&runstatus=" + runStatus + "&supplytemp=" + tempSA);
+
+  Serial.print("connecting to ");
+  Serial.println(hostSF);
+
+  // Use WiFiClient class to create TCP connections
+  WiFiClient client;
+  const int httpPort = 8080;
+  if (!client.connect(hostSF, httpPort)) {
+    Serial.println("connection failed");
+    return;
+  }
+
+  Serial.print("Requesting...");
+
+  // This will send the request to the server
+  client.print(String("GET ") + "/input/" + streamId + "?private_key=" + privateKey + "&returntemp=" + tempRA + "&runstatus=" + runStatus + "&supplytemp=" + tempSA + " HTTP/1.1\r\n" +
+               "Host: " + hostSF + "\r\n" +
+               "Connection: close\r\n\r\n");
+  unsigned long timeout = millis();
+  while (client.available() == 0) {
+    if (millis() - timeout > 15000) {
+      Serial.println(">>> Client Timeout !");
+      client.stop();
+      return;
+    }
+  }
+
+  // Read all the lines of the reply from server and print them to Serial
+  while (client.available()) {
+    String line = client.readStringUntil('\r');
+    Serial.print(line);
+  }
+
+  Serial.println();
+  Serial.println("closing connection");
 }
 
-BLYNK_WRITE(V19)              // App button to display all terminal commands available
+BLYNK_WRITE(V19)
 {
   int pinData = param.asInt();
 

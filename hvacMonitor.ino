@@ -60,6 +60,7 @@ int todaysDate;                       // Sets today's date related to things tha
 String currentTimeDate;               // Time formatted as "0:00AM on 0/0"
 String startTimeDate, stopTimeDate, resetTimeDate;
 int runStatus;                        // Used for graphing. 40 == running. NULL == off.
+String currentStatus;                 // What displays in app. Used solely for sync and recover purposes.
 
 long currentFilterSec;                // Filter age based on unit runtime in seconds (stored in vPin). Seconds used for finer resolution.
 long currentFilterHours;              // Filter age based on unit runtime in hours.
@@ -67,6 +68,11 @@ long timeFilterChanged;               // Unix time that filter was last changed.
 bool filterConfirmFlag = FALSE;       // Used to enter/exit the filter change mode.
 const int filterChangeHours = 300L;   // Duration in hours between filter changes. Up for debate and experimentation!
 bool changeFilterAlarm = FALSE;       // TRUE if filter needs to be changed, until reset.
+
+long todaysAccumRuntimeSecCooling;    // Seconds that system has been cooling.
+long todaysAccumRuntimeSecHeating;    // Seconds that system has been heating.
+bool dominantMode;                    // FALSE = Cooling. TRUE = Heating.
+bool hvacMode;                        // FALSE = Cooling. TRUE = Heating.
 
 double tempRA, tempSA;                // Return and supply air temperatures
 
@@ -87,7 +93,7 @@ void setup()
   }
 
   // START OTA ROUTINE
-  ArduinoOTA.setHostname("esp8266-HVAC");     // Name that is displayed in the Arduino IDE.
+  ArduinoOTA.setHostname("HVAC-WeMosD1mini");     // Name that is displayed in the Arduino IDE.
 
   ArduinoOTA.onStart([]() {
     Serial.println("Start");
@@ -122,19 +128,11 @@ void setup()
   timer.setInterval(1000L, countRuntime);     // Counts blower runtime for daily accumulation displays.
   timer.setInterval(1000L, totalRuntime);     // Counts blower runtime.
   timer.setInterval(1000L, setClockTime);     // Creates a current time with leading zeros.
-  timer.setInterval(500L, alarmTimer);        // Track a cycle start/end time for app display.
+  //timer.setInterval(500L, alarmTimer);      // Alarms for low SA/RA split in heating or cooling.
   timer.setInterval(15432L, phantSend);       // ~15 sec run status updates to Phant runnting on a local Raspberry Pi.
-  //timer.setInterval(30000L, debugVpins);
   timer.setTimeout(100, vsync1);              // Syncs back vPins to survive hardware reset.
-  timer.setTimeout(5000, vsync2);             // Syncs back vPins to survive hardware reset.
-}
-
-void debugVpins()
-{
-  Serial.println(String("V110 local variable (hvacTodaysStartCount) is: ") + hvacTodaysStartCount);
-  Serial.println(String("V111 local variable (todaysAccumRuntimeSec) is: ") + todaysAccumRuntimeSec);
-  Serial.println(String("V112 local variable (yesterdayRuntime) is: ") + yesterdayRuntime);
-  Serial.println(String("V11 local variable (currentFilterSec) is: ") + currentFilterSec);
+  timer.setTimeout(2000, vsync2);             // Syncs back vPins to survive hardware reset.
+  timer.setTimeout(4000, vsync3);             // Syncs back vPins to survive hardware reset.
 }
 
 void loop()  // To keep Blynk happy, keep most tasks out of the loop.
@@ -144,16 +142,21 @@ void loop()  // To keep Blynk happy, keep most tasks out of the loop.
   ArduinoOTA.handle();
 }
 
-void vsync1()
+void vsync2()
 {
   Blynk.syncVirtual(V110);    // hvacTodaysStartCount
   Blynk.syncVirtual(V111);    // todaysAccumRuntimeSec
 }
 
-void vsync2()
+void vsync3()
 {
   Blynk.syncVirtual(V112);    // yesterdayRuntime
   Blynk.syncVirtual(V11);     // currentFilterSec
+}
+
+void vsync1()
+{
+  Blynk.syncVirtual(V16);    // currentStatus
 }
 
 BLYNK_WRITE(V110)
@@ -174,6 +177,11 @@ BLYNK_WRITE(V112)
 BLYNK_WRITE(V11)
 {
   currentFilterSec = param.asLong();
+}
+
+BLYNK_WRITE(V16)
+{
+  currentStatus = param.asStr();
 }
 
 void phantSend() {
@@ -364,12 +372,12 @@ void sendTemps()
   tempSplit = tempRA - tempSA;
 
   // RETURN AIR
-  if (tempRA >= 0 && tempRA <= 120 && digitalRead(blowerPin) == LOW)        // If temp 0-120F and blower running...
+  if (tempRA >= 0 && tempRA <= 150 && digitalRead(blowerPin) == LOW)        // If temp 0-120F and blower running...
   {
     Blynk.virtualWrite(0, tempRA);                                          // ...display the temp...
 
   }
-  else if (tempRA >= 0 && tempRA <= 120 && digitalRead(blowerPin) == HIGH)  // ...unless it's not running, then...
+  else if (tempRA >= 0 && tempRA <= 150 && digitalRead(blowerPin) == HIGH)  // ...unless it's not running, then...
   {
     Blynk.virtualWrite(0, "OFF");                                           // ...display OFF, unless...
   }
@@ -379,11 +387,11 @@ void sendTemps()
   }
 
   // SUPPLY AIR
-  if (tempSA >= 0 && tempSA <= 120 && digitalRead(blowerPin) == LOW)
+  if (tempSA >= 0 && tempSA <= 150 && digitalRead(blowerPin) == LOW)
   {
     Blynk.virtualWrite(1, tempSA);
   }
-  else if (tempSA >= 0 && tempSA <= 120 && digitalRead(blowerPin) == HIGH)
+  else if (tempSA >= 0 && tempSA <= 150 && digitalRead(blowerPin) == HIGH)
   {
     Blynk.virtualWrite(1, "OFF");
   }
@@ -391,14 +399,47 @@ void sendTemps()
   {
     Blynk.virtualWrite(1, "ERR");
   }
+
+  if (digitalRead(blowerPin) == LOW) {    // If HVAC is running and...
+    if (tempSA > tempRA && hvacMode == FALSE)       // supply air is warmer than return air...
+    {
+      Blynk.setProperty(V1, "color", "#ff0000");    // Supply is RED
+      Blynk.setProperty(V0, "color", "#04C0F8");    // Return is BLUE
+      hvacMode = TRUE;                              // FALSE = cooling, TRUE =  heating.
+
+      todaysAccumRuntimeSecHeating = todaysAccumRuntimeSecHeating + 2.5;
+    }
+    else if (tempSA <= tempRA && hvacMode == TRUE)
+    {
+      Blynk.setProperty(V1, "color", "#04C0F8");    // Supply is BLUE
+      Blynk.setProperty(V0, "color", "#ff0000");    // Return is RED
+      hvacMode = FALSE;                             // FALSE = cooling, TRUE =  heating.
+
+      todaysAccumRuntimeSecCooling = todaysAccumRuntimeSecCooling + 2.5;
+    }
+  }
+
+  if (todaysAccumRuntimeSecHeating == 0 && todaysAccumRuntimeSecCooling == 0)
+  {
+    Blynk.virtualWrite(38, "NONE");
+  }
+  else if (todaysAccumRuntimeSecHeating < todaysAccumRuntimeSecCooling)
+  {
+    Blynk.virtualWrite(38, "COOL");
+  }
+  else if (todaysAccumRuntimeSecHeating > todaysAccumRuntimeSecCooling)
+  {
+    Blynk.virtualWrite(38, "HEAT");
+  }
 }
 
 void sendStatus()
 {
   if (resetFlag == TRUE && year() != 1970) {                       // Runs once following Arduino reset/start.
     resetTimeDate = currentTimeDate;
-    Blynk.virtualWrite(16, String("SYSTEM RESET at ") + resetTimeDate);
-    Blynk.setProperty(V16, "color", "#D3435C");
+    Blynk.virtualWrite(16, currentStatus);
+    Blynk.setProperty(V16, "label", String("Current Status:                    SYSTEM RESET at ") + resetTimeDate);
+    Blynk.setProperty(V16, "color", "#808080");
   }
 
   // Purpose: To keep the display showing a system reset state until the HVAC has turned on or off.
@@ -415,6 +456,7 @@ void sendStatus()
   if (digitalRead(blowerPin) == HIGH && startFlag == TRUE) {          // OFF, but was running
     stopTimeDate = currentTimeDate;                                   // Set off time.
     Blynk.virtualWrite(16, String("HVAC OFF since ") + stopTimeDate); // Write to app.
+    currentStatus = String("HVAC OFF since ") + stopTimeDate;
     Blynk.setProperty(V0, "color", "#808080");
     Blynk.setProperty(V1, "color", "#808080");
     Blynk.setProperty(V16, "color", "#808080");
@@ -430,8 +472,22 @@ void sendStatus()
   else if (digitalRead(blowerPin) == LOW && stopFlag == TRUE) {    // RUNNING, but was off
     startTimeDate = currentTimeDate;
     Blynk.virtualWrite(16, String("HVAC ON since ") + startTimeDate);
-    Blynk.setProperty(V0, "color", "#D3435C");  // return air text turns red, and...
-    Blynk.setProperty(V1, "color", "#5F7CD8");
+    currentStatus = String("HVAC ON since ") + startTimeDate;
+
+
+    if (tempSA > tempRA)  // Assumed HEATING mode
+    {
+      Blynk.setProperty(V1, "color", "#ff0000");    // Supply is RED
+      Blynk.setProperty(V0, "color", "#04C0F8");    // Return is BLUE
+      hvacMode = FALSE;                             // FALSE = cooling, TRUE =  heating. Logic swapped on purpose.
+    }
+    else                  // Assumed COOLING mode
+    {
+      Blynk.setProperty(V1, "color", "#04C0F8");    // Supply is BLUE
+      Blynk.setProperty(V0, "color", "#ff0000");    // Return is RED
+      hvacMode = TRUE;                              // FALSE = cooling, TRUE =  heating. Logic swapped on purpose.
+    }
+
     Blynk.setProperty(V16, "color", "#23C48E");
 
     startFlag = TRUE;
@@ -537,11 +593,12 @@ void countRuntime()
       yesterdayRuntime = (todaysAccumRuntimeSec / 60);  // Moves today's runtime to yesterday for the app display.
       Blynk.virtualWrite(112, yesterdayRuntime);        // Record yesterday's runtime to vPin.
       todaysAccumRuntimeSec = 0;                        // Reset today's sec timer.
+      todaysAccumRuntimeSecHeating = 0;                 // Reset today's heating and cooling timers.
+      todaysAccumRuntimeSecCooling = 0;
       Blynk.virtualWrite(111, todaysAccumRuntimeSec);
       hvacTodaysStartCount = 0;                         // Reset how many times unit has started today.
       todaysDate = day();
     }
-
 
     if (yesterdayRuntime < 1)               // Displays yesterday's runtime in app, or 'None' is there's none.
     {
@@ -621,7 +678,6 @@ void trackTrends()
     ++trackTrendIndex;
     trackTrendMinuteFlag = 1;
   }
-
 
   if (minute() == 1 || minute() == 16 || minute() == 31 || minute() == 46)
   {

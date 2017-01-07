@@ -28,17 +28,18 @@ Many thanks to all the library authors. I know nothing. They do.
 ## Pin Assignments
 HW Pin | GPIO† | Purpose 
 ------|-----|------
-D6 | 12 | HVAC fan (cooling) run state. 10KΩ pullup.
-D7 | 13 | DS18B20 array. 4.7KΩ pullup.
-D1 | 5  | *Future* cooling relay.
-D2 | 4  | *Future* heating relay.
-D5 | 14 | *Future* t-stat bypass relay.
-D3 | 0  | Note: Be careful use does not conflict with ESP "pull" required to set mode.††
-D4 | 2  | Note: Be careful use does not conflict with ESP "pull" required to set mode.††
-D8 | 15 | Note: Be careful use does not conflict with ESP "pull" required to set mode.††
+D7 | 13 | HVAC fan (cooling/heating) run state. 10KΩ pullup.
+D6 | 12 | DS18B20 array. 4.7KΩ pullup.
+D1 | 5  | Cooling relay (yellow wire††).
+D2 | 4  | Heating relay (white wire††).
+D5 | 14 | T-stat bypass relay.
+D3 | 0  | Note: Be careful use does not conflict with ESP "pull" required to set mode.†††
+D4 | 2  | Note: Be careful use does not conflict with ESP "pull" required to set mode.†††
+D8 | 15 | Note: Be careful use does not conflict with ESP "pull" required to set mode.†††
 
 † ESP8266 GPIO: The pin number used in the IDE.</br>
-†† [*About ESP GPIOs and boot modes.*](http://www.forward.com.au/pfod/ESP8266/GPIOpins/index.html)
+†† Wire colors correspond to standard HVAC thermostat [4-wire system](https://en.wikipedia.org/wiki/Thermostat#Combination_heating.2Fcooling_regulation).</br>
+††† [*About ESP GPIOs and boot modes.*](http://www.forward.com.au/pfod/ESP8266/GPIOpins/index.html)
 
 ## Testimonials
 From `friend`:

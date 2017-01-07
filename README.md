@@ -32,6 +32,7 @@ D7 | 13 | HVAC fan (cooling/heating) run state. 10KΩ pullup.
 D6 | 12 | DS18B20 array. 4.7KΩ pullup.
 D1 | 5  | Cooling relay (yellow wire††).
 D2 | 4  | Heating relay (white wire††).
+D0 | 16 | *Future* fan relay (green wire††).
 D5 | 14 | T-stat bypass relay.
 D3 | 0  | Note: Be careful use does not conflict with ESP "pull" required to set mode.†††
 D4 | 2  | Note: Be careful use does not conflict with ESP "pull" required to set mode.†††

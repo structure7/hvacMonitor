@@ -1,7 +1,6 @@
 #include <SimpleTimer.h>        // Timer library
 #define BLYNK_PRINT Serial      // Turn this on to see basic Blynk activities
 //#define BLYNK_DEBUG           // Turn this on to see *everything* Blynk is doing... really fills up serial monitor!
-#include <ESP8266WiFi.h>
 #include <ESP8266mDNS.h>        // Required for OTA
 #include <WiFiUdp.h>            // Required for OTA
 #include <ArduinoOTA.h>         // Required for OTA
@@ -31,7 +30,6 @@ char* privateKey = "privateKey";
 SimpleTimer timer;
 
 WidgetRTC rtc;
-BLYNK_ATTACH_WIDGET(rtc, V8);
 WidgetTerminal terminal(V26);
 
 const int blowerPin = 13;  // WeMos pin D7.
@@ -71,10 +69,24 @@ bool changeFilterAlarm = FALSE;       // TRUE if filter needs to be changed, unt
 
 long todaysAccumRuntimeSecCooling;    // Seconds that system has been cooling.
 long todaysAccumRuntimeSecHeating;    // Seconds that system has been heating.
-bool dominantMode;                    // FALSE = Cooling. TRUE = Heating.
+bool heatingMode;                     // FALSE = Cooling. TRUE = Heating.
 bool hvacMode;                        // FALSE = Cooling. TRUE = Heating.
 
 double tempRA, tempSA;                // Return and supply air temperatures
+
+int coolingRelay = 5;   // WeMos pin D1.
+int heatingRelay = 4;   // WeMos pin D2.
+int fanRelay = 16;      // WeMos pin D0.
+int bypassRelay = 14;   // WeMos pin D5.
+
+int controlSplit = 1;   // Predefined value of how much I want to heat or cool above trigger point.
+int controllingTemp;
+int setpointTemp;
+String controllingSpace;
+bool coolingMode;       // 1 = cooling. 0 = heating.
+bool controlMode;
+int tempKK, tempLK;
+
 
 void setup()
 {
@@ -91,6 +103,20 @@ void setup()
   while (Blynk.connect() == false) {
     // Wait until connected
   }
+
+  pinMode(coolingRelay, OUTPUT);
+  pinMode(heatingRelay, OUTPUT);
+  pinMode(fanRelay, OUTPUT);
+  pinMode(bypassRelay, OUTPUT);
+
+  // Default all HVAC relays to off
+  digitalWrite(coolingRelay, HIGH);
+  digitalWrite(heatingRelay, HIGH);
+  digitalWrite(fanRelay, HIGH);
+  digitalWrite(bypassRelay, HIGH);
+  Blynk.setProperty(V39, "label", "Setpoint");
+  Blynk.setProperty(V39, "color", "#27292D");  // Gray that blends into Blynk tool background rending invisible.
+  Blynk.setProperty(V40, "color", "#696969");
 
   // START OTA ROUTINE
   ArduinoOTA.setHostname("HVAC-WeMosD1mini");     // Name that is displayed in the Arduino IDE.
@@ -127,12 +153,16 @@ void setup()
   timer.setInterval(1234L, sendStatus);       // Unit run status polling interval (for app Current Status display only).
   timer.setInterval(1000L, countRuntime);     // Counts blower runtime for daily accumulation displays.
   timer.setInterval(1000L, totalRuntime);     // Counts blower runtime.
+  timer.setInterval(1000L, modeTracking);     // Tracks if unit has been mostly cooling or heating during the day.
   timer.setInterval(1000L, setClockTime);     // Creates a current time with leading zeros.
   //timer.setInterval(500L, alarmTimer);      // Alarms for low SA/RA split in heating or cooling.
   timer.setInterval(15432L, phantSend);       // ~15 sec run status updates to Phant runnting on a local Raspberry Pi.
   timer.setTimeout(100, vsync1);              // Syncs back vPins to survive hardware reset.
   timer.setTimeout(2000, vsync2);             // Syncs back vPins to survive hardware reset.
   timer.setTimeout(4000, vsync3);             // Syncs back vPins to survive hardware reset.
+  timer.setInterval(30000L, tempUpdater);      // When bypass on, this evaluates controlling space against setpoint.
+  timer.setInterval(30000L, tempControl);     // Temps (controlling space) that can control HVAC are synced.
+
 }
 
 void loop()  // To keep Blynk happy, keep most tasks out of the loop.
@@ -141,6 +171,191 @@ void loop()  // To keep Blynk happy, keep most tasks out of the loop.
   timer.run();
   ArduinoOTA.handle();
 }
+
+// ******************************************************** HVAC CTRL START **********************************************
+BLYNK_WRITE(V40) {
+  switch (param.asInt())
+  {
+    // **************************************** IN ALL CASES BELOW: LOW == ON/CLOSED, HIGH == OFF/OPEN
+    case 1: {                         // House t-stat controlling (bypass off)
+        controlMode = 0;
+        Blynk.setProperty(V39, "label", "Setpoint");
+        Blynk.setProperty(V39, "color", "#27292D");   // Blynk widget background gray
+        Blynk.setProperty(V40, "color", "#696969");   // DimGray
+        digitalWrite(fanRelay, HIGH);
+        digitalWrite(coolingRelay, HIGH);
+        digitalWrite(heatingRelay, HIGH);
+        digitalWrite(bypassRelay, HIGH);
+        break;
+      }
+    case 2: {                         // House t-stat bypass (Blynk-controlling, but nothing running)
+        controlMode = 0;
+        Blynk.setProperty(V39, "label", "Setpoint");
+        Blynk.setProperty(V39, "color", "#27292D");   // Blynk widget background gray
+        Blynk.setProperty(V40, "color", "#FFFFFF");   // White
+        digitalWrite(fanRelay, HIGH);
+        digitalWrite(coolingRelay, HIGH);
+        digitalWrite(heatingRelay, HIGH);
+        digitalWrite(bypassRelay, LOW);
+        break;
+      }
+    case 3: {                         // Manual fan (blower only)
+        controlMode = 0;
+        Blynk.setProperty(V39, "label", "Setpoint");
+        Blynk.setProperty(V39, "color", "#27292D");   // Blynk widget background gray
+        Blynk.setProperty(V40, "color", "#23C48E");   // Blynk green
+        digitalWrite(fanRelay, LOW);
+        digitalWrite(coolingRelay, HIGH);
+        digitalWrite(heatingRelay, HIGH);
+        digitalWrite(bypassRelay, LOW);
+        break;
+      }
+    case 4: {                         // Manual cooling
+        controlMode = 0;
+        Blynk.setProperty(V39, "label", "Setpoint");
+        Blynk.setProperty(V39, "color", "#27292D");   // Blynk widget background gray
+        Blynk.setProperty(V40, "color", "#04C0F8");   // Blynk blue
+        digitalWrite(fanRelay, HIGH);
+        digitalWrite(coolingRelay, LOW);
+        digitalWrite(heatingRelay, HIGH);
+        digitalWrite(bypassRelay, LOW);
+        break;
+      }
+    case 5: {                         // Manual heating
+        controlMode = 0;
+        Blynk.setProperty(V39, "label", "Setpoint");
+        Blynk.setProperty(V39, "color", "#27292D");   // Blynk widget background gray
+        Blynk.setProperty(V40, "color", "#D3435C");   // Blynk red
+        digitalWrite(fanRelay, HIGH);
+        digitalWrite(coolingRelay, HIGH);
+        digitalWrite(heatingRelay, LOW);
+        digitalWrite(bypassRelay, LOW);
+        break;
+      }
+    case 6: {                                         // Keaton-controlled cooling
+        controlMode = 1;
+        controllingSpace = "KK";                      // Here's the room that we're watching
+        coolingMode = 1;                              // This sets the HVAC in correct mode and decides tstat logic
+        controllingTemp = tempKK;
+        Blynk.setProperty(V39, "label", String("Setpoint - Controlled by KK (currently ") + tempKK + "F).");
+        Blynk.setProperty(V39, "color", "#04C0F8");   // Blynk blue
+        Blynk.setProperty(V40, "color", "#04C0F8");   // Blynk blue
+        digitalWrite(fanRelay, HIGH);
+        digitalWrite(coolingRelay, HIGH);
+        digitalWrite(heatingRelay, HIGH);
+        digitalWrite(bypassRelay, LOW);
+        break;
+      }
+    case 7: {                             // Keaton-controlled heating
+        controlMode = 1;
+        controllingSpace = "KK";
+        coolingMode = 0;
+        controllingTemp = tempKK;
+        Blynk.setProperty(V39, "label", String("Setpoint - Controlled by KK (currently ") + tempKK + "F).");
+        Blynk.setProperty(V39, "color", "#D3435C");
+        Blynk.setProperty(V40, "color", "#D3435C");
+        digitalWrite(fanRelay, HIGH);
+        digitalWrite(coolingRelay, HIGH);
+        digitalWrite(heatingRelay, HIGH);
+        digitalWrite(bypassRelay, LOW);
+        break;
+      }
+    case 8: {                             // Liv-controlled cooling
+        controlMode = 1;
+        controllingSpace = "LK";
+        coolingMode = 1;
+        controllingTemp = tempLK;
+        Blynk.setProperty(V39, "label", String("Setpoint - Controlled by LK (currently ") + tempLK + "F).");
+        Blynk.setProperty(V39, "color", "#04C0F8");
+        Blynk.setProperty(V40, "color", "#04C0F8");
+        digitalWrite(fanRelay, HIGH);
+        digitalWrite(coolingRelay, HIGH);
+        digitalWrite(heatingRelay, HIGH);
+        digitalWrite(bypassRelay, LOW);
+        break;
+      }
+    case 9: {                             // Liv-controlled heating
+        controlMode = 1;
+        controllingSpace = "LK";
+        coolingMode = 0;
+        controllingTemp = tempLK;
+        Blynk.setProperty(V39, "label", String("Setpoint - Controlled by LK (currently ") + tempLK + "F).");
+        Blynk.setProperty(V39, "color", "#D3435C");
+        Blynk.setProperty(V40, "color", "#D3435C");
+        digitalWrite(fanRelay, HIGH);
+        digitalWrite(coolingRelay, HIGH);
+        digitalWrite(heatingRelay, HIGH);
+        digitalWrite(bypassRelay, LOW);
+        break;
+      }
+    default: {
+        controlMode = 0;
+        Blynk.setProperty(V39, "label", "Setpoint");
+        Blynk.setProperty(V39, "color", "#27292D");   // Blynk widget background gray
+        Blynk.setProperty(V40, "color", "#696969");   // DimGray
+        digitalWrite(fanRelay, HIGH);
+        digitalWrite(coolingRelay, HIGH);
+        digitalWrite(heatingRelay, HIGH);
+        digitalWrite(bypassRelay, HIGH);
+        break;
+      }
+  }
+}
+
+void tempControl() {
+
+  if (controlMode == 1)                            // If we're in bypass mode, proceed:
+  {
+
+    if (coolingMode == 0 && controllingTemp != 0 && controllingTemp < setpointTemp)       // If mode is heat and room falls equal or below the target temp...
+    {
+      digitalWrite(heatingRelay, LOW);                            // turn on the heat. But when
+    }
+    else if (coolingMode == 0 && controllingTemp != 0 && controllingTemp >= (setpointTemp + controlSplit))   // If mode is heat and room is warmer then target temp...
+    {
+      digitalWrite(heatingRelay, HIGH);                           // everything is turned off.
+    }
+    else if (coolingMode == 1 && controllingTemp != 0 && controllingTemp > setpointTemp)  // If mode is cool and room rises equal or above the target temp...
+    {
+      digitalWrite(coolingRelay, LOW);                            // turn on cooling. Then,
+    }
+    else if (coolingMode == 1 && controllingTemp != 0 && controllingTemp <= (setpointTemp - controlSplit))   // when mode is cool and room is cooler then target temp...
+    {
+      digitalWrite(coolingRelay, HIGH);                           // turn everything off.
+    }
+
+  }
+}
+
+void tempUpdater() {
+  Blynk.syncVirtual(V4);
+  Blynk.syncVirtual(V6);
+
+  if (controllingSpace == "KK")
+  {
+    controllingTemp = tempKK;
+    Blynk.setProperty(V39, "label", String("Setpoint - Controlled by KK (currently ") + tempKK + "F)");
+  }
+  else if (controllingSpace == "LK")
+  {
+    controllingTemp = tempLK;
+    Blynk.setProperty(V39, "label", String("Setpoint - Controlled by LK (currently ") + tempLK + "F)");
+  }
+}
+
+BLYNK_WRITE(V4) {
+  tempKK = param.asInt();
+}
+
+BLYNK_WRITE(V6) {
+  tempLK = param.asInt();
+}
+
+BLYNK_WRITE(V39)  // Input from slider in app to set setpoint
+{
+  setpointTemp = param.asInt();
+}
+// ******************************************************** HVAC CTRL END **********************************************
 
 void vsync2()
 {
@@ -157,6 +372,7 @@ void vsync3()
 void vsync1()
 {
   Blynk.syncVirtual(V16);    // currentStatus
+  Blynk.syncVirtual(V38);    // heatingMode (kind of)
 }
 
 BLYNK_WRITE(V110)
@@ -182,6 +398,20 @@ BLYNK_WRITE(V11)
 BLYNK_WRITE(V16)
 {
   currentStatus = param.asStr();
+}
+
+BLYNK_WRITE(V38)
+{
+  String blah = param.asStr();
+
+  if (blah == "COOL")
+  {
+    heatingMode = FALSE;
+  }
+  else if (blah == "HEAT")
+  {
+    heatingMode = TRUE;
+  }
 }
 
 void phantSend() {
@@ -406,16 +636,29 @@ void sendTemps()
       Blynk.setProperty(V1, "color", "#ff0000");    // Supply is RED
       Blynk.setProperty(V0, "color", "#04C0F8");    // Return is BLUE
       hvacMode = TRUE;                              // FALSE = cooling, TRUE =  heating.
-
-      todaysAccumRuntimeSecHeating = todaysAccumRuntimeSecHeating + 2.5;
     }
     else if (tempSA <= tempRA && hvacMode == TRUE)
     {
       Blynk.setProperty(V1, "color", "#04C0F8");    // Supply is BLUE
       Blynk.setProperty(V0, "color", "#ff0000");    // Return is RED
       hvacMode = FALSE;                             // FALSE = cooling, TRUE =  heating.
+    }
+  }
+}
 
-      todaysAccumRuntimeSecCooling = todaysAccumRuntimeSecCooling + 2.5;
+void modeTracking()
+{
+  if (digitalRead(blowerPin) == LOW)  // If the blower is running...
+  {
+    if (tempSA > tempRA)              // and it looks like we're heating, then...
+    {
+      hvacMode = TRUE;                // TRUE = heating, and...
+      ++todaysAccumRuntimeSecHeating; // count each heating second, but...
+    }
+    else if (tempSA < tempRA)         // if it looks like we're coolng, then...
+    {
+      hvacMode = FALSE;               // FALSE = cooling, and...
+      ++todaysAccumRuntimeSecCooling; // count each cooling second.
     }
   }
 
@@ -426,10 +669,12 @@ void sendTemps()
   else if (todaysAccumRuntimeSecHeating < todaysAccumRuntimeSecCooling)
   {
     Blynk.virtualWrite(38, "COOL");
+    heatingMode = FALSE;
   }
   else if (todaysAccumRuntimeSecHeating > todaysAccumRuntimeSecCooling)
   {
     Blynk.virtualWrite(38, "HEAT");
+    heatingMode = TRUE;
   }
 }
 

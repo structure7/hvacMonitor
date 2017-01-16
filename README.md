@@ -29,15 +29,15 @@ Many thanks to all the library authors. I know nothing. They do.
 ## Pin Assignments
 HW Pin | GPIO† | Purpose 
 ------|-----|------
-A0 | A0 | *Future* HVAC fan-only run state.
-D7 | 13 | HVAC cooling/heating run state. 10KΩ pullup.
-D6 | 12 | DS18B20 array. 4.7KΩ pullup.
-D1 | 5  | Cooling relay (yellow wire††).
-D2 | 4  | Heating relay (white wire††).
+A0 | A0 | *Future* HVAC fan-only run state. Or, alternate cooling/heating motor run state.
 D0 | 16 | *Future* fan relay (green wire††).
-D5 | 14 | T-stat bypass relay.
+D1 | 5  | Cooling control relay (yellow wire††).
+D2 | 4  | Heating control relay (white wire††).
 D3 | 0  | Note: Be careful use does not conflict with ESP "pull" required to set mode.†††
 D4 | 2  | Note: Be careful use does not conflict with ESP "pull" required to set mode.†††
+D5 | 14 | T-stat control bypass relay.
+D6 | 12 | DS18B20 array. 4.7KΩ pullup.
+D7 | 13 | HVAC cooling/heating motor run state. 10KΩ pullup.
 D8 | 15 | Note: Be careful use does not conflict with ESP "pull" required to set mode.†††
 
 † ESP8266 GPIO: The pin number used in the IDE.</br>

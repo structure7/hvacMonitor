@@ -1,15 +1,17 @@
 # hvacMonitor
 A small project to simply monitor my HVAC system with future plans to add control.<br>
 <p align="center"><img src="http://i.imgur.com/bLSOJA6.jpg"/></p>
-Hardware is a WeMos D1 Mini and a few DS18B20 digital thermometers. I started out with an ESP-01 but, as always, I wanted more!
+Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I started out with an ESP-01 but, as always, I wanted more!
 
 ## Features
  * Arduino code running on a single [WeMos D1 Mini](http://www.wemos.cc/Products/d1_mini.html).
  * Monitoring of the air temperature coming into my HVAC unit (return air) and temperature of air after it's cooled (supply air), including a Blynk notification if the unit isn't cooling enough. All temperature sensors are <a href="https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf">Maxim/Dallas DS18B20</a>... a mix of probe-style and bare TO-92 package sensors.
- * Monitoring of HVAC run status. This is done by tapping the 24VAC t-stat with an ice cube relay to give the WeMos a dry contact to monitor. The Blynk app displays if the HVAC is on or off, and how long it's been on or off. To monitor on/off and temperature activities, information is sent to data.sparkfun.com and share with analog.io to produce some pretty graphs.
+ * Monitoring of HVAC run status. This is done by tapping the 24VAC t-stat with an ice cube relay (NTE R14-11A10-24(11)) to give the WeMos a dry contact to monitor. The Blynk app displays if the HVAC is on or off, and how long it's been on or off. To monitor on/off and temperature activities, information is sent to data.sparkfun.com and share with analog.io to produce some pretty graphs.
  * All data that needs to survive a hardware reset is stored to Blynk virtual pins, then synced back after a reset.
  * OTA Updates: Using BasicOTA. Learned [from this post](https://github.com/esp8266/Arduino/issues/1017#issuecomment-223466025) that a complete power down is required after uploading BasicOTA for the first time. Weird, but whatever. [Thank you Ivan!](https://github.com/igrr)
- * *Currently on hold*: 4-channel DC 5V relay switch module (<a href="http://www.ebay.com/itm/321869298037">source</a>) providing control of Fan Only and Cooling modes. Todo: Heating and Bypass-Only (allow ESP to control HVAC *in lieu of* house t-stat).
+ * 4-channel DC 5V relay switch module (<a href="http://www.ebay.com/itm/321869298037">source</a>) providing control of cooling, heating and fan-only modes.
+ * *Future:* Air quality monitoring with a true laser particle counter (ideally 2 size ranges (>0.5 & >2.5 microns)). Either in-unit to monitor filter efficiency, and/or exterior (outdoor) and indoor AQMs that prompt for fan-only HVAC operation to utilize MERV 13 filter for air cleaning.
+ * *Future:* Additional dry contact relays to monitor heating, cooling, and fan. Can probably be much smaller than the ice cube relay. DIN mount preferable. May need an MCP23008 or similar GPIO expander.
 
 ## Libraries and Resources
 
@@ -17,7 +19,6 @@ Title | Include | Link
 ------|---------|------
 Time | Timelib.h | https://github.com/PaulStoffregen/Time
 SimpleTimer | SimpleTimer.h | https://github.com/jfturcot/SimpleTimer
-ESP8266/Arduino | ESP8266WiFi.h | https://github.com/esp8266/Arduino
 blynk-library | BlynkSimpleEsp8266.h, WidgetRTC.h, TimeLib.h | https://github.com/blynkkk/blynk-library
 OneWire | OneWire.h | https://github.com/PaulStoffregen/OneWire
 Arduino-Temperature-Control-Library | DallasTemperature.h | https://github.com/milesburton/Arduino-Temperature-Control-Library
@@ -28,7 +29,8 @@ Many thanks to all the library authors. I know nothing. They do.
 ## Pin Assignments
 HW Pin | GPIO† | Purpose 
 ------|-----|------
-D7 | 13 | HVAC fan (cooling/heating) run state. 10KΩ pullup.
+A0 | A0 | *Future* HVAC fan-only run state.
+D7 | 13 | HVAC cooling/heating run state. 10KΩ pullup.
 D6 | 12 | DS18B20 array. 4.7KΩ pullup.
 D1 | 5  | Cooling relay (yellow wire††).
 D2 | 4  | Heating relay (white wire††).

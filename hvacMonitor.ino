@@ -184,10 +184,6 @@ BLYNK_WRITE(V40) {
         digitalWrite(coolingRelay, HIGH);
         digitalWrite(heatingRelay, HIGH);
         digitalWrite(bypassRelay, HIGH);
-
-        terminal.println((millis() / 1000) + String(" House in Ctrl mode."));
-        terminal.flush();
-
         break;
       }
     case 2: {                         // House t-stat bypass (Blynk-controlling, but nothing running)
@@ -198,10 +194,6 @@ BLYNK_WRITE(V40) {
         digitalWrite(coolingRelay, HIGH);
         digitalWrite(heatingRelay, HIGH);
         digitalWrite(bypassRelay, LOW);
-
-        terminal.println((millis() / 1000) + String(" Bypass only mode."));
-        terminal.flush();
-
         break;
       }
     case 3: {                         // Manual fan (blower only)
@@ -212,10 +204,6 @@ BLYNK_WRITE(V40) {
         digitalWrite(coolingRelay, HIGH);
         digitalWrite(heatingRelay, HIGH);
         digitalWrite(bypassRelay, LOW);
-
-        terminal.println((millis() / 1000) + String(" Manual fan mode."));
-        terminal.flush();
-
         break;
       }
     case 4: {                         // Manual cooling
@@ -226,10 +214,6 @@ BLYNK_WRITE(V40) {
         digitalWrite(coolingRelay, LOW);
         digitalWrite(heatingRelay, HIGH);
         digitalWrite(bypassRelay, LOW);
-
-        terminal.println((millis() / 1000) + String(" Manual cooling mode."));
-        terminal.flush();
-
         break;
       }
     case 5: {                         // Manual heating
@@ -240,10 +224,6 @@ BLYNK_WRITE(V40) {
         digitalWrite(coolingRelay, HIGH);
         digitalWrite(heatingRelay, LOW);
         digitalWrite(bypassRelay, LOW);
-
-        terminal.println((millis() / 1000) + String(" Manual heat mode."));
-        terminal.flush();
-
         break;
       }
     case 6: {                                         // Keaton-controlled cooling
@@ -256,10 +236,6 @@ BLYNK_WRITE(V40) {
         digitalWrite(coolingRelay, HIGH);
         digitalWrite(heatingRelay, HIGH);
         digitalWrite(bypassRelay, LOW);
-
-        terminal.println((millis() / 1000) + String(" KK cool mode."));
-        terminal.flush();
-
         break;
       }
     case 7: {                             // Keaton-controlled heating
@@ -273,10 +249,6 @@ BLYNK_WRITE(V40) {
         digitalWrite(coolingRelay, HIGH);
         digitalWrite(heatingRelay, HIGH);
         digitalWrite(bypassRelay, LOW);
-
-        terminal.println((millis() / 1000) + String(" KK heat mode."));
-        terminal.flush();
-
         break;
       }
     case 8: {                             // Liv-controlled cooling
@@ -289,10 +261,6 @@ BLYNK_WRITE(V40) {
         digitalWrite(coolingRelay, HIGH);
         digitalWrite(heatingRelay, HIGH);
         digitalWrite(bypassRelay, LOW);
-
-        terminal.println((millis() / 1000) + String(" LK cool mode."));
-        terminal.flush();
-
         break;
       }
     case 9: {                             // Liv-controlled heating
@@ -305,10 +273,6 @@ BLYNK_WRITE(V40) {
         digitalWrite(coolingRelay, HIGH);
         digitalWrite(heatingRelay, HIGH);
         digitalWrite(bypassRelay, LOW);
-
-        terminal.println((millis() / 1000) + String(" LK heat mode."));
-        terminal.flush();
-
         break;
       }
     default: {
@@ -325,37 +289,25 @@ void tempControl() {
     if (coolingMode == 0 && controllingTemp < setpointTemp)       // If mode is heat and room falls equal or below the target temp...
     {
       digitalWrite(heatingRelay, LOW);                            // turn on the heat. But when
-      terminal.println((millis() / 1000) + String(" SETPOINT: Heat relay closed."));
-      terminal.println(String("   SP:") + setpointTemp + " Ctrl:" + controllingTemp);
-      terminal.flush();
     }
     else if (coolingMode == 0 && controllingTemp >= (setpointTemp + controlSplit))   // If mode is heat and room is warmer then target temp...
     {
       digitalWrite(heatingRelay, HIGH);                           // everything is turned off.
-      terminal.println((millis() / 1000) + String(" SETPOINT: Heat relay open."));
-      terminal.println(String("   SP:") + setpointTemp + " Ctrl:" + controllingTemp);
-      terminal.flush();
     }
     else if (coolingMode == 1 && controllingTemp > setpointTemp)  // If mode is cool and room rises equal or above the target temp...
     {
       digitalWrite(coolingRelay, LOW);                            // turn on cooling. Then,
-      terminal.println((millis() / 1000) + String(" SETPOINT: Cool relay closed."));
-      terminal.println(String("   SP:") + setpointTemp + " Ctrl:" + controllingTemp);
-      terminal.flush();
     }
     else if (coolingMode == 1 && controllingTemp <= (setpointTemp - controlSplit))   // when mode is cool and room is cooler then target temp...
     {
       digitalWrite(coolingRelay, HIGH);                           // turn everything off.
-      terminal.println((millis() / 1000) + String(" SETPOINT: Heat relay opem."));
-      terminal.println(String("   SP:") + setpointTemp + " Ctrl:" + controllingTemp);
-      terminal.flush();
     }
 
   }
 }
 
 void tempControlSafety() {      // Safeties running every second
-  if  (digitalRead(blowerPin) == LOW && (setpointTemp == 0 || controllingTemp  == 0) )  // If HVAC is running and the setpoint or controlling temp are 0, then open relays. Control will be locked out until those temps are != 0.
+  if  (digitalRead(blowerPin) == LOW && (setpointTemp <= 0 || controllingTemp  <= 0) )  // If HVAC is running and the setpoint or controlling temp are 0, then open relays. Control will be locked out until those temps are != 0.
   {
     digitalWrite(coolingRelay, HIGH);
     digitalWrite(heatingRelay, HIGH);
@@ -403,8 +355,6 @@ void controlReset() {
   digitalWrite(bypassRelay, HIGH);
   Blynk.virtualWrite(V40, 1);
 
-  terminal.println((millis() / 1000) + String(" House in Ctrl mode."));
-  terminal.flush();
 }
 // ******************************************************** HVAC CTRL END **********************************************
 
@@ -909,6 +859,7 @@ void countRuntime()
   }
 }
 
+/*
 int todayTrends[96];  // 0 represents the first 15 minutes of the day, and so on. Will have 96 elements.
 int trackTrendIndex;
 int yesterdayTrends[96];
@@ -963,3 +914,4 @@ void trackTrends()
   }
 
 }
+*/

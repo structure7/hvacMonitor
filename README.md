@@ -11,7 +11,6 @@ Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I
  * OTA Updates: Using BasicOTA. Learned [from this post](https://github.com/esp8266/Arduino/issues/1017#issuecomment-223466025) that a complete power down is required after uploading BasicOTA for the first time. Weird, but whatever. [Thank you Ivan!](https://github.com/igrr)
  * 4-channel DC 5V relay switch module (<a href="http://www.ebay.com/itm/321869298037">source</a>) providing control of cooling, heating and fan-only modes.
  * *Future:* Air quality monitoring with a true laser particle counter (ideally 2 size ranges (>0.5 & >2.5 microns)). Either in-unit to monitor filter efficiency, and/or exterior (outdoor) and indoor AQMs that prompt for fan-only HVAC operation to utilize MERV 13 filter for air cleaning.
- * *Future:* Additional dry contact relays to monitor heating, cooling, and fan. Can probably be much smaller than the ice cube relay. DIN mount preferable. May need an MCP23008 or similar GPIO expander.
 
 ## Libraries and Resources
 

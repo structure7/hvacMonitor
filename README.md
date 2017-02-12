@@ -5,8 +5,8 @@ Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I
 
 ## Features
  * Arduino code running on a single [WeMos D1 Mini](http://www.wemos.cc/Products/d1_mini.html).
- * Monitoring of the air temperature coming into my HVAC unit (return air) and temperature of air after it's cooled (supply air), including a Blynk notification if the unit isn't cooling enough. All temperature sensors are <a href="https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf">Maxim/Dallas DS18B20</a>... a mix of probe-style and bare TO-92 package sensors.
- * Monitoring of HVAC run status. This is done by tapping the 24VAC t-stat with an ice cube relay (NTE R14-11A10-24(11)) to give the WeMos a dry contact to monitor. The Blynk app displays if the HVAC is on or off, and how long it's been on or off. To monitor on/off and temperature activities, information is sent to data.sparkfun.com and share with analog.io to produce some pretty graphs.
+ * Monitoring of the air temperature coming into my HVAC unit (return air) and temperature of air after it's cooled/heated (supply air), including a Blynk notification if the unit isn't performing. All temperature sensors are <a href="https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf">Maxim/Dallas DS18B20</a>... a mix of probe-style and bare TO-92 package sensors.
+ * Monitoring of HVAC run status. This is done by tapping the 24VAC t-stat with relays (NTE R14-11A10-24(11)) to give the WeMos dry contacts to monitor. The Blynk app displays if the HVAC is on or off, and how long it's been on or off. To monitor on/off and temperature activities, information is sent to ~~data.sparkfun.com~~ my own Phant server running on a Raspberry Pi and shared with analog.io to produce some pretty graphs. FYI, for the RasPi: 1. <a href="http://thisdavej.com/beginners-guide-to-installing-node-js-on-a-raspberry-pi/">Install Raspian & Node.js</a>, 2. `sudo npm install -g phant`, 3. Because of <a href="https://github.com/sparkfun/phant/issues/200">this issue</a> make <a href="https://github.com/stoto/phant/commit/3fd561c7659c26900338cd6fe7f049e7c985a35a">this fix</a>, 4. `phant`
  * All data that needs to survive a hardware reset is stored to Blynk virtual pins, then synced back after a reset.
  * OTA Updates: Using BasicOTA. Learned [from this post](https://github.com/esp8266/Arduino/issues/1017#issuecomment-223466025) that a complete power down is required after uploading BasicOTA for the first time. Weird, but whatever. [Thank you Ivan!](https://github.com/igrr)
  * 4-channel DC 5V relay switch module (<a href="http://www.ebay.com/itm/321869298037">source</a>) providing control of cooling, heating and fan-only modes.
@@ -29,16 +29,16 @@ Many thanks to all the library authors. I know nothing. They do.
 ## Pin Assignments
 HW Pin | GPIO† | Purpose 
 ------|-----|------
-A0 | A0 | *Future* HVAC fan-only run state. Or, alternate cooling/heating motor run state.
-D0 | 16 | *Future* fan relay (green wire††).
+A0 | A0 | Available.
+D0 | 16 | Fan control relay (green wire††).
 D1 | 5  | Cooling control relay (yellow wire††).
 D2 | 4  | Heating control relay (white wire††).
 D3 | 0  | T-stat control bypass relay.†††
-D4 | 2  | Note: Be careful use does not conflict with ESP "pull" required to set mode.†††
-D5 | 14 | 
+D4 | 2  | Available.†††
+D5 | 14 | *Future* HVAC fan-only run state.
 D6 | 12 | DS18B20 array. 4.7KΩ pullup.
 D7 | 13 | HVAC cooling/heating motor run state. 10KΩ pullup.
-D8 | 15 | Note: Be careful use does not conflict with ESP "pull" required to set mode.†††
+D8 | 15 | Available.†††
 
 † ESP8266 GPIO: The pin number used in the IDE.</br>
 †† Wire colors correspond to standard HVAC thermostat [4-wire system](https://en.wikipedia.org/wiki/Thermostat#Combination_heating.2Fcooling_regulation).</br>
@@ -55,7 +55,7 @@ From `wife`:
 > That's nice, honey.
 
 From `me`:
-> It's great to have historical data on outside temperatures and see how they impact the inside, as well as notifications if the return air/supply air delta temperature drops too low or is trending that way. I can at least get a jump on possible refrigerant loss, compressor overheat, or other service issue. Toss in a notification when the outside temperature equals my house thermostat target (indicating when I can cut off A/C and open doors/windows) and I might even see a small utility savings. Go team.
+> It's great to have historical data on outside temperatures and see how they impact the inside, as well as notifications if the return air/supply air delta temperature drops too low or is trending that way. I can at least get a jump on possible refrigerant loss, compressor overheat, or other service issue. I can also set any room's temperature sensor to be a virtual thermostat... from my phone. ZONES! Go team.
 
 
 [How to edit this.](https://guides.github.com/features/mastering-markdown/)

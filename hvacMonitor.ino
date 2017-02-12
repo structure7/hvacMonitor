@@ -19,9 +19,9 @@ DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; //
 
 char auth[] = "fromBlynkApp";
 char ssid[] = "ssid";
-char pass[] = "pw";
+char pass[] = "pass";
 
-char myEmail[] = "email";
+char myEmail[] = "kemperm@usa.net";
 
 char* hostSF = "raspi";
 char* streamId   = "publicKey";
@@ -33,6 +33,7 @@ WidgetRTC rtc;
 WidgetTerminal terminal(V26);
 
 const int blowerPin = 13;  // WeMos pin D7.
+//const int fanPin;          // Future fan only pin.
 bool daySet = FALSE;       // Sets the day once after reset and RTC is set correctly.
 
 bool runOnce = TRUE;
@@ -77,7 +78,7 @@ double tempRA, tempSA;                // Return and supply air temperatures
 int coolingRelay = 5;   // WeMos pin D1.
 int heatingRelay = 4;   // WeMos pin D2.
 int fanRelay = 16;      // WeMos pin D0.
-int bypassRelay = 14;   // WeMos pin D5.
+int bypassRelay = 0;    // WeMos pin D3.
 
 int controlSplit = 1;   // Predefined value of how much I want to heat or cool above trigger point.
 int controllingTemp;
@@ -87,6 +88,11 @@ bool coolingMode;       // 1 = cooling. 0 = heating.
 bool controlMode;
 int tempKK, tempLK;
 
+long controlStart;
+long controlRuntime;
+long heatControlTimeout = 600000; // 600000 millis = 10 minutes
+long coolControlTimeout = 120000000; // 120000000 millis = 20 minutes
+bool controlLatch = FALSE;
 
 void setup()
 {
@@ -207,6 +213,7 @@ BLYNK_WRITE(V40) {
         break;
       }
     case 4: {                         // Manual cooling
+        /*
         controlMode = 0;
         controllingSpace = "";
         Blynk.setProperty(V39, "label", "Setpoint");
@@ -214,9 +221,13 @@ BLYNK_WRITE(V40) {
         digitalWrite(coolingRelay, LOW);
         digitalWrite(heatingRelay, HIGH);
         digitalWrite(bypassRelay, LOW);
+        */
+        controlReset();
+        
         break;
       }
     case 5: {                         // Manual heating
+        /*
         controlMode = 0;
         controllingSpace = "";
         Blynk.setProperty(V39, "label", "Setpoint");
@@ -224,6 +235,9 @@ BLYNK_WRITE(V40) {
         digitalWrite(coolingRelay, HIGH);
         digitalWrite(heatingRelay, LOW);
         digitalWrite(bypassRelay, LOW);
+        */
+        controlReset();
+        
         break;
       }
     case 6: {                                         // Keaton-controlled cooling
@@ -289,31 +303,64 @@ void tempControl() {
     if (coolingMode == 0 && controllingTemp < setpointTemp)       // If mode is heat and room falls equal or below the target temp...
     {
       digitalWrite(heatingRelay, LOW);                            // turn on the heat. But when
+      controlRuntime = controlRuntime + 30;
     }
     else if (coolingMode == 0 && controllingTemp >= (setpointTemp + controlSplit))   // If mode is heat and room is warmer then target temp...
     {
       digitalWrite(heatingRelay, HIGH);                           // everything is turned off.
+      controlRuntime = 0;
+      controlLatch = FALSE;
     }
     else if (coolingMode == 1 && controllingTemp > setpointTemp)  // If mode is cool and room rises equal or above the target temp...
     {
       digitalWrite(coolingRelay, LOW);                            // turn on cooling. Then,
+      controlRuntime = controlRuntime + 30;
     }
     else if (coolingMode == 1 && controllingTemp <= (setpointTemp - controlSplit))   // when mode is cool and room is cooler then target temp...
     {
       digitalWrite(coolingRelay, HIGH);                           // turn everything off.
+      controlRuntime = 0;
+      controlLatch = FALSE;
     }
 
   }
 }
 
 void tempControlSafety() {      // Safeties running every second
-  if  (digitalRead(blowerPin) == LOW && (setpointTemp <= 0 || controllingTemp  <= 0) )  // If HVAC is running and the setpoint or controlling temp are 0, then open relays. Control will be locked out until those temps are != 0.
+  if (controlMode == 1 && digitalRead(blowerPin) == LOW && (setpointTemp <= 0 || controllingTemp  <= 0) )  // If HVAC is running and the setpoint or controlling temp are 0, then open relays. Control will be locked out until those temps are != 0.
   {
-    digitalWrite(coolingRelay, HIGH);
-    digitalWrite(heatingRelay, HIGH);
+    safetyShutoff();
 
     Blynk.notify(hour() + String(":") + minute() + ":" + second() + " " + month() + "/" + day() + " ERROR: Ctrl attempted with no setpointTemp or controllingTemp");
   }
+
+  if (controlMode == 1 && digitalRead(blowerPin) == LOW && controlLatch == FALSE) {  // If Blynk is controlling, and fan starts:
+    controlStart = millis();            // Records start time of unit.
+    controlLatch = TRUE;
+  }
+
+  if (controlMode == 1 && digitalRead(blowerPin) == LOW && coolingMode == 0 && millis() >= controlStart + heatControlTimeout) {
+    safetyShutoff();
+
+    Blynk.notify(hour() + String(":") + minute() + ":" + second() + " " + month() + "/" + day() + " ERROR: Heater ran for more than " + (heatControlTimeout/60000) + " minutes.");
+  }
+  else if (controlMode == 1 && digitalRead(blowerPin) == LOW && coolingMode == 1 && millis() >= controlStart + coolControlTimeout) {
+    safetyShutoff();
+
+    Blynk.notify(hour() + String(":") + minute() + ":" + second() + " " + month() + "/" + day() + " ERROR: Cooler ran for more than " + (coolControlTimeout/60000) + " minutes.");
+  }
+
+}
+
+void safetyShutoff() {
+  controlMode = 0;
+  controllingSpace = "";
+  controlLatch = FALSE;
+  Blynk.setProperty(V39, "label", "Setpoint");
+  digitalWrite(fanRelay, HIGH);
+  digitalWrite(coolingRelay, HIGH);
+  digitalWrite(heatingRelay, HIGH);
+  digitalWrite(bypassRelay, HIGH);
 }
 
 void tempUpdater() {
@@ -860,14 +907,14 @@ void countRuntime()
 }
 
 /*
-int todayTrends[96];  // 0 represents the first 15 minutes of the day, and so on. Will have 96 elements.
-int trackTrendIndex;
-int yesterdayTrends[96];
-bool trackTrendResetFlag;
-bool trackTrendMinuteFlag;
+  int todayTrends[96];  // 0 represents the first 15 minutes of the day, and so on. Will have 96 elements.
+  int trackTrendIndex;
+  int yesterdayTrends[96];
+  bool trackTrendResetFlag;
+  bool trackTrendMinuteFlag;
 
-void trackTrends()
-{
+  void trackTrends()
+  {
   if (hour() == 0 && trackTrendResetFlag  == 0)   // At midnight...
   {
     int i;
@@ -913,5 +960,5 @@ void trackTrends()
     trackTrendMinuteFlag = 0;
   }
 
-}
+  }
 */

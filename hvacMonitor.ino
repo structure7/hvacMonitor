@@ -19,9 +19,9 @@ DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; //
 
 char auth[] = "fromBlynkApp";
 char ssid[] = "ssid";
-char pass[] = "pass";
+char pass[] = "pw";
 
-char myEmail[] = "kemperm@usa.net";
+char myEmail[] = "email";
 
 char* hostSF = "raspi";
 char* streamId   = "publicKey";
@@ -33,7 +33,7 @@ WidgetRTC rtc;
 WidgetTerminal terminal(V26);
 
 const int blowerPin = 13;  // WeMos pin D7.
-//const int fanPin;          // Future fan only pin.
+const int fanPin = 14;     // Future fan only pin.
 bool daySet = FALSE;       // Sets the day once after reset and RTC is set correctly.
 
 bool runOnce = TRUE;
@@ -75,6 +75,7 @@ bool hvacMode;                        // FALSE = Cooling. TRUE = Heating.
 
 double tempRA, tempSA;                // Return and supply air temperatures
 
+// HVAC control pins
 int coolingRelay = 5;   // WeMos pin D1.
 int heatingRelay = 4;   // WeMos pin D2.
 int fanRelay = 16;      // WeMos pin D0.
@@ -122,7 +123,7 @@ void setup()
   digitalWrite(bypassRelay, HIGH);
 
   // START OTA ROUTINE
-  ArduinoOTA.setHostname("HVAC-WeMosD1mini");     // Name that is displayed in the Arduino IDE.
+  ArduinoOTA.setHostname("hvacMonitor");     // Name that is displayed in the Arduino IDE.
 
   ArduinoOTA.onStart([]() {
     Serial.println("Start");
@@ -214,30 +215,30 @@ BLYNK_WRITE(V40) {
       }
     case 4: {                         // Manual cooling
         /*
-        controlMode = 0;
-        controllingSpace = "";
-        Blynk.setProperty(V39, "label", "Setpoint");
-        digitalWrite(fanRelay, HIGH);
-        digitalWrite(coolingRelay, LOW);
-        digitalWrite(heatingRelay, HIGH);
-        digitalWrite(bypassRelay, LOW);
+          controlMode = 0;
+          controllingSpace = "";
+          Blynk.setProperty(V39, "label", "Setpoint");
+          digitalWrite(fanRelay, HIGH);
+          digitalWrite(coolingRelay, LOW);
+          digitalWrite(heatingRelay, HIGH);
+          digitalWrite(bypassRelay, LOW);
         */
         controlReset();
-        
+
         break;
       }
     case 5: {                         // Manual heating
         /*
-        controlMode = 0;
-        controllingSpace = "";
-        Blynk.setProperty(V39, "label", "Setpoint");
-        digitalWrite(fanRelay, HIGH);
-        digitalWrite(coolingRelay, HIGH);
-        digitalWrite(heatingRelay, LOW);
-        digitalWrite(bypassRelay, LOW);
+          controlMode = 0;
+          controllingSpace = "";
+          Blynk.setProperty(V39, "label", "Setpoint");
+          digitalWrite(fanRelay, HIGH);
+          digitalWrite(coolingRelay, HIGH);
+          digitalWrite(heatingRelay, LOW);
+          digitalWrite(bypassRelay, LOW);
         */
         controlReset();
-        
+
         break;
       }
     case 6: {                                         // Keaton-controlled cooling
@@ -342,12 +343,12 @@ void tempControlSafety() {      // Safeties running every second
   if (controlMode == 1 && digitalRead(blowerPin) == LOW && coolingMode == 0 && millis() >= controlStart + heatControlTimeout) {
     safetyShutoff();
 
-    Blynk.notify(hour() + String(":") + minute() + ":" + second() + " " + month() + "/" + day() + " ERROR: Heater ran for more than " + (heatControlTimeout/60000) + " minutes.");
+    Blynk.notify(hour() + String(":") + minute() + ":" + second() + " " + month() + "/" + day() + " ERROR: Heater ran for more than " + (heatControlTimeout / 60000) + " minutes.");
   }
   else if (controlMode == 1 && digitalRead(blowerPin) == LOW && coolingMode == 1 && millis() >= controlStart + coolControlTimeout) {
     safetyShutoff();
 
-    Blynk.notify(hour() + String(":") + minute() + ":" + second() + " " + month() + "/" + day() + " ERROR: Cooler ran for more than " + (coolControlTimeout/60000) + " minutes.");
+    Blynk.notify(hour() + String(":") + minute() + ":" + second() + " " + month() + "/" + day() + " ERROR: Cooler ran for more than " + (coolControlTimeout / 60000) + " minutes.");
   }
 
 }
@@ -630,38 +631,43 @@ BLYNK_WRITE(V20) // App button to reset hardware
 
 void sendTemps()
 {
-  sensors.requestTemperatures();                                            // Polls the sensors
+  sensors.requestTemperatures();                                          // Polls the sensors
   tempRA = sensors.getTempF(ds18b20RA);
   tempSA = sensors.getTempF(ds18b20SA);
   tempSplit = tempRA - tempSA;
 
   // RETURN AIR
-  if (tempRA >= 0 && tempRA <= 150 && digitalRead(blowerPin) == LOW)        // If temp 0-120F and blower running...
+  if (digitalRead(blowerPin) == LOW)    // If HVAC blower running...
   {
-    Blynk.virtualWrite(0, tempRA);                                          // ...display the temp...
-
+    Blynk.virtualWrite(0, tempRA);      // ...display the temp...
   }
-  else if (tempRA >= 0 && tempRA <= 150 && digitalRead(blowerPin) == HIGH)  // ...unless it's not running, then...
+  else if (digitalRead(fanPin) == LOW)  // ...if fan-only running, display FAN, unless...
   {
-    Blynk.virtualWrite(0, "OFF");                                           // ...display OFF, unless...
+    Blynk.virtualWrite(0, "FAN");
   }
-  else
+  else if (tempRA <= 0 || tempRA > 150)
   {
-    Blynk.virtualWrite(0, "ERR");                                           // ...there's an error, then display ERR.
+    Blynk.virtualWrite(0, "ERR");       // ...there's an error, then display ERR, otherwise...
+  }
+  else{
+    Blynk.virtualWrite(0, "OFF");       // ...display OFF.
   }
 
   // SUPPLY AIR
-  if (tempSA >= 0 && tempSA <= 150 && digitalRead(blowerPin) == LOW)
+  if (digitalRead(blowerPin) == LOW)
   {
     Blynk.virtualWrite(1, tempSA);
   }
-  else if (tempSA >= 0 && tempSA <= 150 && digitalRead(blowerPin) == HIGH)
+  else if (digitalRead(fanPin) == LOW)
   {
-    Blynk.virtualWrite(1, "OFF");
+    Blynk.virtualWrite(1, "FAN");
   }
-  else
+  else if (tempSA <= 0 || tempSA > 150)
   {
     Blynk.virtualWrite(1, "ERR");
+  }
+  else {
+    Blynk.virtualWrite(1, "OFF");
   }
 
   if (digitalRead(blowerPin) == LOW) {    // If HVAC is running and...
@@ -859,9 +865,7 @@ void countRuntime()
     {
       ++todaysAccumRuntimeSec;                          // Counts today's AC runtime in seconds.
       Blynk.virtualWrite(111, todaysAccumRuntimeSec);
-      ++currentFilterSec;                               // Counts how many seconds filter is used based on AC runtime.
-      Blynk.virtualWrite(11, currentFilterSec);
-      currentFilterHours = (currentFilterSec / 3600);   // Converts those seconds to hours for display and other uses.
+
     }
     else if (todaysDate != day())
     {
@@ -873,6 +877,12 @@ void countRuntime()
       Blynk.virtualWrite(111, todaysAccumRuntimeSec);
       hvacTodaysStartCount = 0;                         // Reset how many times unit has started today.
       todaysDate = day();
+    }
+
+    if (digitalRead(blowerPin) == LOW || digitalRead(fanPin) == LOW) {
+      ++currentFilterSec;                               // Counts how many seconds filter is used for HVAC or fan-only.
+      Blynk.virtualWrite(11, currentFilterSec);
+      currentFilterHours = (currentFilterSec / 3600);   // Converts those seconds to hours for display and other uses.
     }
 
     if (yesterdayRuntime < 1)               // Displays yesterday's runtime in app, or 'None' is there's none.

@@ -34,9 +34,9 @@ D1 | 5  | Cooling control relay (yellow wire††).
 D2 | 4  | Heating control relay (white wire††).
 D3 | 0  | T-stat control bypass relay.†††
 D4 | 2  | Available.†††
-D5 | 14 | *Future* HVAC fan-only run state.
+D5 | 14 | HVAC fan-only run state.
 D6 | 12 | DS18B20 array. 4.7KΩ pullup.
-D7 | 13 | HVAC cooling/heating motor run state. 10KΩ pullup.
+D7 | 13 | HVAC cooling/heating motor run state. 10KΩ pullup. *Future:* Split these two states.
 D8 | 15 | Available.†††
 
 † ESP8266 GPIO: The pin number used in the IDE.</br>

@@ -10,6 +10,7 @@ Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I
  * All data that needs to survive a hardware reset is stored to Blynk virtual pins, then synced back after a reset.
  * OTA Updates: Using BasicOTA. Learned [from this post](https://github.com/esp8266/Arduino/issues/1017#issuecomment-223466025) that a complete power down is required after uploading BasicOTA for the first time. Weird, but whatever. [Thank you Ivan!](https://github.com/igrr)
  * 4-channel DC 5V relay switch module (<a href="http://www.ebay.com/itm/321869298037">source</a>) providing control of cooling, heating and fan-only modes.
+ * *Future:* Replace 24VAC dry contact relays with current monitoring via a SCT-013-030 current transformer (for HVAC run status).
  * *Future:* Air quality monitoring with a true laser particle counter (ideally 2 size ranges (>0.5 & >2.5 microns)). Either in-unit to monitor filter efficiency, and/or exterior (outdoor) and indoor AQMs that prompt for fan-only HVAC operation to utilize MERV 13 filter for air cleaning.
 
 ## Libraries and Resources

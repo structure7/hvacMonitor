@@ -11,10 +11,10 @@ Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I
    * Install Raspbian and Node.js using [Dave Johnson's fantastic guide](http://thisdavej.com/beginners-guide-to-installing-node-js-on-a-raspberry-pi/).
    * Install Phant with `sudo npm install -g phant`
    * Because of [this issue](https://github.com/sparkfun/phant/issues/200):
-     * Run `sudo git clone https://githib.com/stoto/phant.git` to download fixed file (thanks [stoto](https://github.com/stoto)!)
-     * Run `gksudo pcmanfm` to open file manager as root, allowing for drag and drop
-     * Copy/overwrite the content of stoto's `/phant/lib` into `/usr/lib/node_modules/phant/lib`
-     * Run `phant`
+     * Run `sudo git clone https://githib.com/stoto/phant.git` to download fixed files (thanks [stoto](https://github.com/stoto)!)
+     * Run `gksudo pcmanfm` to open file manager as root, allowing for drag and drop.
+     * Copy/overwrite the content of stoto's `/phant/lib` into `/usr/lib/node_modules/phant/lib`.
+     * Run `phant`.
  * All data that needs to survive a hardware reset is stored to Blynk virtual pins, then synced back after a reset.
  * OTA Updates: Using BasicOTA. Learned [from this post](https://github.com/esp8266/Arduino/issues/1017#issuecomment-223466025) that a complete power down is required after uploading BasicOTA for the first time. Weird, but whatever. [Thank you Ivan!](https://github.com/igrr)
  * 4-channel DC 5V relay switch module (<a href="http://www.ebay.com/itm/321869298037">source</a>) providing control of cooling, heating and fan-only modes.

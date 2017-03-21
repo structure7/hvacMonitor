@@ -4,7 +4,7 @@ A small project to monitor and control my HVAC system. Designing a PCB now!<br>
 Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I started out with an ESP-01 but, as always, I wanted more!
 
 ## Features
- * Arduino code running on a single [WeMos D1 Mini](http://www.wemos.cc/Products/d1_mini.html).
+ * Arduino code running on a single [WeMos D1 Mini](http://www.wemos.cc).
  * Monitoring of the air temperature coming into my HVAC unit (return air) and temperature of air after it's cooled/heated (supply air), including a Blynk notification if the unit isn't performing. All temperature sensors are <a href="https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf">Maxim/Dallas DS18B20</a>... a mix of probe-style and bare TO-92 package sensors.
  * Monitoring of HVAC run status. This is done by tapping the 24VAC t-stat with relays (NTE R14-11A10-24(11)) to give the WeMos dry contacts to monitor. The Blynk app displays if the HVAC is on or off, and how long it's been on or off. 
  * Sending RA/SA temps and run status to a [Phant](http://phant.io/) server on a Raspberry Pi in lieu of data.sparkfun.com (which had uptime issues):

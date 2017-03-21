@@ -6,8 +6,8 @@ Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I
 ## Features
  * Arduino code running on a single [WeMos D1 Mini](http://www.wemos.cc/Products/d1_mini.html).
  * Monitoring of the air temperature coming into my HVAC unit (return air) and temperature of air after it's cooled/heated (supply air), including a Blynk notification if the unit isn't performing. All temperature sensors are <a href="https://datasheets.maximintegrated.com/en/ds/DS18B20.pdf">Maxim/Dallas DS18B20</a>... a mix of probe-style and bare TO-92 package sensors.
- * Monitoring of HVAC run status. This is done by tapping the 24VAC t-stat with relays (NTE R14-11A10-24(11)) to give the WeMos dry contacts to monitor. The Blynk app displays if the HVAC is on or off, and how long it's been on or off. To monitor on/off and temperature activities, information is sent to ~~data.sparkfun.com~~ my own Phant server running on a Raspberry Pi and shared with analog.io to produce some pretty graphs. FYI, for the RasPi: 
- * Running a Phant server on a Raspberry Pi in lieu of data.sparkfun.com (which had uptime issues):
+ * Monitoring of HVAC run status. This is done by tapping the 24VAC t-stat with relays (NTE R14-11A10-24(11)) to give the WeMos dry contacts to monitor. The Blynk app displays if the HVAC is on or off, and how long it's been on or off. 
+ * Sending RA/SA temps and run status to a [Phant](http://phant.io/) server on a Raspberry Pi in lieu of data.sparkfun.com (which had uptime issues):
    * Install Raspbian and Node.js using [Dave Johnson's fantastic guide](http://thisdavej.com/beginners-guide-to-installing-node-js-on-a-raspberry-pi/).
    * Install Phant with `sudo npm install -g phant`
    * Because of [this issue](https://github.com/sparkfun/phant/issues/200):

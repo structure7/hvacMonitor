@@ -11,7 +11,7 @@ Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I
    * Install Raspbian and Node.js using [Dave Johnson's fantastic guide](http://thisdavej.com/beginners-guide-to-installing-node-js-on-a-raspberry-pi/).
    * Install Phant with `sudo npm install -g phant`
    * Because of [this issue](https://github.com/sparkfun/phant/issues/200):
-     * Run `sudo git clone https://githib.com/stoto/phant.git` to download fixed files (thanks [stoto](https://github.com/stoto)!)
+     * Run `sudo git clone https://github.com/stoto/phant.git` to download fixed files (thanks [stoto](https://github.com/stoto)!)
      * Run `gksudo pcmanfm` to open file manager as root, allowing for drag and drop.
      * Copy/overwrite the content of stoto's `/phant/lib` into `/usr/lib/node_modules/phant/lib`.
      * Run `phant`.

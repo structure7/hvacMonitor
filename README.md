@@ -1,6 +1,6 @@
 # hvacMonitor
 A small project to monitor and control my HVAC system. Designing a PCB now!<br>
-<p align="center"><img src="http://i.imgur.com/4gonxa2.png"/></p>
+<p align="center"><img src="http://i.imgur.com/kOhaFHD.png"/></p>
 Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I started out with an ESP-01 but, as always, I wanted more!
 
 ## Features

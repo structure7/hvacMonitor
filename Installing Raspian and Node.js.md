@@ -132,3 +132,53 @@ Amazing!  We are connected remotely to the RasPi and we no longer need the dedic
 * Unplug the power cable, HDMI cable, and the USB keyboard and mouse.
 * Plug the power cable back in and the RasPi should be on its way back up without all of those extra cables!
 * After giving the RasPi a minute or so to boot, connect to it once again using the Windows Remote Desktop program.
+
+### Create Windows File Share on the RasPi (Optional)
+
+We can create a Windows file share on the RasPi so that we can copy files from our Windows machine directly onto the RasPi.  This can come in handy in many contexts.  This is also useful for OS X users since you will be able to connect to your Raspberry Pi file share from Finder under “Shared”.  Here’s how we do it:
+
+* Launch a terminal session.
+* Create a directory called “share” in your home directory as follows:
+<br>`$ mkdir ~/share`<br>
+* Issue the following command to launch the Leafpad editor.
+<br>`$ sudo leafpad /etc/samba/smb.conf &`<br>
+* We could have also used the console-based “nano” editor, but Leafpad provides a GUI which is more suitable for beginners.  The ampersand on the end of the command launches Leafpad as a background process so we are returned to a shell prompt in the terminal.  Also, the smb.conf is part of the Samba package we installed early and this is why it exists on our system.
+* Scroll down to the very bottom of the smb.conf configuration file and add the following:<br>
+<br>`[PiShare]`
+<br>`comment=Raspi Share`
+<br>`path=/home/pi/share`
+<br>`browseable=Yes`
+<br>`writeable=Yes`
+<br>`only guest=No`
+<br>`create mask=0740`
+<br>`directory mask=0750`
+<br>`public=no`<br>
+* Save the changes to the smb.conf configuration file and exit the Leafpad editor.  (Raspbian will automagically restart the SMB (Samba) services based on the changes you made to the configuration file.)
+* Back in a terminal session, we need to create an SMB (Samba) user so we can connect securely from Windows.  We will create a user named “pi”, but this will be an SMB (Windows user) rather than the Raspbian “pi” user. Here’s how we do it:
+<br>`$ sudo smbpasswd -a pi`<br>  You will be prompted to enter and re-enter a password.  Document this password somewhere for future reference.
+
+We are ready to connect to our newly created RasPi file share from Windows!
+
+* Back on your Windows machine, type the Windows key and “R” (Win-R) to launch a run box for typing in commands.
+* Enter two backslashes followed by the name of your RasPi machine (i.e. your Hostname) and hit enter.  For example:
+<br>`\\raspi`<br>
+* When prompted for credentials, enter the following:
+  * Username: The format to enter here in Windows parlance is the domain\username.  For us, our domain will be our RasPi hostname and our user name will be “pi”.  Therefore, we will enter: `raspi\pi`  If your Hostname is not raspi, you will obviously enter that instead.
+  * Password: (enter the password you created with the smbpasswd command above)
+* Voilà!  We should now be connected.  Double click the PiShare folder to launch the file share you just created.  You will also see a folder called pi that provides read-only access to your entire home directory.
+* You can test your newly created file share by creating a text file on the Windows side and verifying that it shows up in the /home/pi/share directory on the RasPi side.
+* In Windows, you can also map a drive to the file share you just created as follows:
+  * Launch Windows Explorer.
+  * Click on the Map network drive button in the ribbon menu at the top and select Map network drive.
+  * Enter the drive letter (for example “P” for “pi” drive), the share folder path, and select Reconnect at sign-in:
+  <br><img src="http://thisdavej.com/wp-content/uploads/2016/06/mapdrive1.png"><br>
+  * Enter the password you created with the smbpasswd command above (if prompted) and select *Remember my credentials*:
+  <br><img src="http://thisdavej.com/wp-content/uploads/2016/06/mapdrive2.png"><br>
+  * You should now see a “P” drive (or other drive letter you selected) when viewing through Windows Explorer!
+  
+### Install Node.js
+You now have an amazing general purpose Raspberry Pi system that can be used for a variety of tasks and inter-operates well in the Windows world (it even looks like a Windows machine to the other Windows machines!) – and can play nicely in the Mac and Linux world too.  Let’s go ahead and install Node.js so we will be ready to do some fun projects in the future.  Here are the steps:
+
+Our friends at NodeSource host and maintain some excellent Node.js binary distributions.  We will leverage a command they have written to add another package repository to our RasPi so that we will be able to “apt install” a modern version of Node.js from their repository.  This is beneficial since the Debian/Raspbian versions may not always be up to date.  By adding the NodeSource repository, we will also be able to receive updates rather than just installing a standalone (.deb) file version of Node that cannot be updated easily.
+
+> *Note: As described at the beginning of this article, this final section of the tutorial related to the installation of Node.js requires a Pi system based on the newer ARMv7 or ARMv8 chip such as the Pi 2 or Pi 3.  NodeSource provides Node.js binaries for these newer ARMv7+ architectures, but not for Raspberry Pi systems based on the older ARMv6 architecture such as the Raspberry Pi Model B/B+ or the Raspberry Pi Zero.<br><br>Read the writing carefully on your Raspberry Pi circuit board to confirm is says something like “Raspberry Pi 3 Model B” or “Raspberry Pi 2 Model B”. If in doubt, run the following command in the terminal:<br><br>`$ uname -m`<br><br> If the result returned starts with “armv6”, you are running a Raspberry Pi based on the older ARMv6 chipset and the next Node.js installation step will not work; otherwise, you are ready for the next step.*

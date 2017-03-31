@@ -1,6 +1,6 @@
 ###### *The following is copied from [here](http://thisdavej.com/beginners-guide-to-installing-node-js-on-a-raspberry-pi) for safekeeping. All credit and many thanks to Dave Johnson ([@thisDaveJ](https://twitter.com/thisDaveJ)). Updated by him on 10/26/16.*
 
-TODO: Update the rest and images.
+
 
 # Beginner’s Guide to Installing Node.js on a Raspberry Pi
 

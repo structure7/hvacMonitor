@@ -1,4 +1,4 @@
-###### *The following is copied from [here](http://thisdavej.com/beginners-guide-to-installing-node-js-on-a-raspberry-pi) for safekeeping. All credit and many thanks to Dave Johnson ([@thisDaveJ](https://twitter.com/thisDaveJ)).*
+###### *The following is copied from [here](http://thisdavej.com/beginners-guide-to-installing-node-js-on-a-raspberry-pi) for safekeeping. All credit and many thanks to Dave Johnson ([@thisDaveJ](https://twitter.com/thisDaveJ)). Updated by him on 10/26/16.*
 
 TODO: Update the rest and images.
 
@@ -182,3 +182,20 @@ You now have an amazing general purpose Raspberry Pi system that can be used for
 Our friends at NodeSource host and maintain some excellent Node.js binary distributions.  We will leverage a command they have written to add another package repository to our RasPi so that we will be able to “apt install” a modern version of Node.js from their repository.  This is beneficial since the Debian/Raspbian versions may not always be up to date.  By adding the NodeSource repository, we will also be able to receive updates rather than just installing a standalone (.deb) file version of Node that cannot be updated easily.
 
 > *Note: As described at the beginning of this article, this final section of the tutorial related to the installation of Node.js requires a Pi system based on the newer ARMv7 or ARMv8 chip such as the Pi 2 or Pi 3.  NodeSource provides Node.js binaries for these newer ARMv7+ architectures, but not for Raspberry Pi systems based on the older ARMv6 architecture such as the Raspberry Pi Model B/B+ or the Raspberry Pi Zero.<br><br>Read the writing carefully on your Raspberry Pi circuit board to confirm is says something like “Raspberry Pi 3 Model B” or “Raspberry Pi 2 Model B”. If in doubt, run the following command in the terminal:<br><br>`$ uname -m`<br><br> If the result returned starts with “armv6”, you are running a Raspberry Pi based on the older ARMv6 chipset and the next Node.js installation step will not work; otherwise, you are ready for the next step.*
+
+Here we go in the final stretch!  Let’s proceed with an installation of the latest version of Node at the moment which is Node 7.8.0.
+<br>`$ curl -sL https://deb.nodesource.com/setup_7.x | sudo -E bash -`<br>
+The previous command updates our Debian apt package repository to include the NodeSource packages.
+>*Note: It’s generally a good idea from a security perspective to know what commands you are invoking on your system, especially since the command above invokes the script as the root user.  If you want the technical details behind this script, you can launch the URL (https://deb.nodesource.com/setup_7.x) in your browser and review the code.  The script carries out some ceremony to determine the Linux distribution you are running and instructs the Debian apt package system to add the NodeSource package repository as a trusted source for obtaining Debian packages.  This enables us to install Node.js now and [upgrade to more recent versions of Node.js when they become available](http://thisdavej.com/upgrading-to-more-recent-versions-of-node-js-on-the-raspberry-pi/).*
+
+Now that we have added the NodeSource package repository, we can move on and install Node.js!
+<br>`$ sudo apt install nodejs`<br>
+We can then test and see what version of Node we are running and launch the Node REPL as we discussed in the previous article as a quick test to confirm the installation was successful.
+<br>`$ node -v`
+<br>`v7.8.0`
+<br>`$ node`
+<br>`> 1 + 3`
+<br>`4`
+<br>`> # We can hit Ctrl-C twice to exit the REPL and get back to the bash (shell) prompt.`<br>
+
+###### *The aboved was copied from [here](http://thisdavej.com/beginners-guide-to-installing-node-js-on-a-raspberry-pi) for safekeeping. All credit and many thanks to Dave Johnson ([@thisDaveJ](https://twitter.com/thisDaveJ)).*

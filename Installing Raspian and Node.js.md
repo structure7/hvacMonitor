@@ -100,6 +100,8 @@ Next, run the following command to upgrade any packages installed on your system
 <br>`$ sudo apt full-upgrade`<br>
 This is important to keep your RasPi system synchronized with security updates, etc. These two commands should be issued together and run periodically.
 
+*[[My](https://github.com/structure7) injection: try `sudo apt update && sudo apt full-upgrade`.]*
+
 ### Prepare Remote Desktop
 We want to run our RasPi remotely without requiring a dedicated HDMI monitor and USB keyboard/mouse.  This is known as headless mode. We will be using the xrdp package to accomplish this goal. Newer versions of Raspbian (starting with versions that ship with the PIXEL desktop environment) ship with RealVNC for remote connections.  Unfortunately, RealVNC does not work well in headless mode since it degrades to a very low resolution, and there is quite a bit of ceremony required to change the resolution. The xrdp solution automatically scales our desktop resolution and makes our life much easier.  Let’s do it:
 * Before we can install xrdp, we must first install the tightvncserver package.  The tightvncserver installation will also remove the RealVNC server software that ships with newer versions of Raspbian since tightvncserver (xrdp) will not work if RealVNC is installed.  (Thanks to Ryan Hanley for this tip!) Enter the following command in the terminal:

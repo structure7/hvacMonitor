@@ -126,7 +126,7 @@ The “-y” option will automatically answer yes to the default questions which
   * username: pi
   * password: raspberry (unless you changed it in the Raspberry Pi Configuration program earlier in the tutorial.)
 
-*[[My](https://github.com/structure7) injection: During the startup log shown after connecting to xrdp, note the port connected to (127.0.0.1 SOME_PORT), then revise /etc/xrdp/xrdp.ini (probably under [xrdp1]) port to SOME_PORT in lieu of -1. Now all remote connections will join the same session.]*
+*[[My](https://github.com/structure7) injection: During the startup log shown after connecting to xrdp, note the port connected to (127.0.0.1 SOME_PORT), then revise /etc/xrdp/xrdp.ini (probably under [xrdp1]) port to SOME_PORT (probably 5910)in lieu of -1. Now all remote connections will join the same session.]*
 
 Amazing!  We are connected remotely to the RasPi and we no longer need the dedicated HDMI monitor and USB keyboard/mouse. Let’s go ahead and shut down the RasPi for a minute so we can free up our monitor and keyboard/mouse:
 

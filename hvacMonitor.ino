@@ -23,7 +23,7 @@ char pass[] = "pw";
 
 char myEmail[] = "email";
 
-char* hostSF = "raspi";
+char* hostSF = "192.168.0.168";
 char* streamId   = "publicKey";
 char* privateKey = "privateKey";
 
@@ -81,19 +81,23 @@ int heatingRelay = 4;   // WeMos pin D2.
 int fanRelay = 16;      // WeMos pin D0.
 int bypassRelay = 0;    // WeMos pin D3.
 
-int controlSplit = 1;   // Predefined value of how much I want to heat or cool above trigger point.
+int controlSplit = 2;   // Predefined value of how much I want to heat or cool above/below setpoint.
 int controllingTemp;
 int setpointTemp;
 String controllingSpace;
 bool coolingMode;       // 1 = cooling. 0 = heating.
 bool controlMode;
-int tempKK, tempLK;
+int tempKK, tempLK, tempAT;
 
 long controlStart;
 long controlRuntime;
 long heatControlTimeout = 600000; // 600000 millis = 10 minutes
 long coolControlTimeout = 120000000; // 120000000 millis = 20 minutes
 bool controlLatch = FALSE;
+
+bool blynkFlag;
+int blynkDisconnectCount;
+bool ranOnce;
 
 void setup()
 {
@@ -168,6 +172,8 @@ void setup()
   timer.setInterval(30000L, tempUpdater);      // When bypass on, this evaluates controlling space against setpoint.
   timer.setInterval(30000L, tempControl);     // Temps (controlling space) that can control HVAC are synced.
   timer.setInterval(1000L, tempControlSafety);
+  timer.setInterval(250L, disconnectWatcher);     // Watches for a disconnect event
+  timer.setInterval(5000L, disconnectReporter);   // Reports disconnects to the app every 5 seconds
 
 }
 
@@ -176,7 +182,27 @@ void loop()  // To keep Blynk happy, keep most tasks out of the loop.
   Blynk.run();
   timer.run();
   ArduinoOTA.handle();
+
+  if (ranOnce == false && year() != 1970) {
+    Blynk.setProperty(V107, "label", String(hour()) + ":" + minute() + " " + month() + "/" + day() + " HVAC");
+    ranOnce = true;
+  }
 }
+
+void disconnectWatcher() {
+  if (Blynk.connected() == false && blynkFlag == false) {
+    ++blynkDisconnectCount;
+    blynkFlag = true;
+  }
+  else if (Blynk.connected() == true && blynkFlag == true) {
+    blynkFlag = false;
+  }
+}
+
+void disconnectReporter() {
+  Blynk.virtualWrite(V107, blynkDisconnectCount);
+}
+
 
 // ******************************************************** HVAC CTRL START **********************************************
 BLYNK_WRITE(V40) {
@@ -213,33 +239,31 @@ BLYNK_WRITE(V40) {
         digitalWrite(bypassRelay, LOW);
         break;
       }
-    case 4: {                         // Manual cooling
-        /*
-          controlMode = 0;
-          controllingSpace = "";
-          Blynk.setProperty(V39, "label", "Setpoint");
-          digitalWrite(fanRelay, HIGH);
-          digitalWrite(coolingRelay, LOW);
-          digitalWrite(heatingRelay, HIGH);
-          digitalWrite(bypassRelay, LOW);
-        */
-        controlReset();
-
+    case 4: {                         // House t-stat-controlled cooling
+        controlMode = 1;
+        controllingSpace = "AT";
+        coolingMode = 1;
+        controllingTemp = tempAT;
+        Blynk.setProperty(V39, "label", String("Setpoint: ") + setpointTemp + ". Controlled by AT (currently " + tempAT + "F).");
+        digitalWrite(fanRelay, HIGH);
+        digitalWrite(coolingRelay, HIGH);
+        digitalWrite(heatingRelay, HIGH);
+        digitalWrite(bypassRelay, LOW);
         break;
       }
-    case 5: {                         // Manual heating
+    case 5: {                         // House t-stat controlled heating
         /*
-          controlMode = 0;
-          controllingSpace = "";
-          Blynk.setProperty(V39, "label", "Setpoint");
+          controlMode = 1;
+          controllingSpace = "AT";
+          coolingMode = 0;
+          controllingTemp = tempAT;
+          Blynk.setProperty(V39, "label", String("Setpoint: ") + setpointTemp + ". Controlled by AT (currently " + tempAT + "F).");
           digitalWrite(fanRelay, HIGH);
           digitalWrite(coolingRelay, HIGH);
-          digitalWrite(heatingRelay, LOW);
+          digitalWrite(heatingRelay, HIGH);
           digitalWrite(bypassRelay, LOW);
+          break;
         */
-        controlReset();
-
-        break;
       }
     case 6: {                                         // Keaton-controlled cooling
         controlMode = 1;
@@ -254,17 +278,19 @@ BLYNK_WRITE(V40) {
         break;
       }
     case 7: {                             // Keaton-controlled heating
-        Blynk.syncVirtual(V39);
-        controlMode = 1;
-        controllingSpace = "KK";
-        coolingMode = 0;
-        controllingTemp = tempKK;
-        Blynk.setProperty(V39, "label", String("Setpoint: ") + setpointTemp + "F. Controlled by KK (currently " + tempKK + "F).");
-        digitalWrite(fanRelay, HIGH);
-        digitalWrite(coolingRelay, HIGH);
-        digitalWrite(heatingRelay, HIGH);
-        digitalWrite(bypassRelay, LOW);
-        break;
+        /*
+          Blynk.syncVirtual(V39);
+          controlMode = 1;
+          controllingSpace = "KK";
+          coolingMode = 0;
+          controllingTemp = tempKK;
+          Blynk.setProperty(V39, "label", String("Setpoint: ") + setpointTemp + "F. Controlled by KK (currently " + tempKK + "F).");
+          digitalWrite(fanRelay, HIGH);
+          digitalWrite(coolingRelay, HIGH);
+          digitalWrite(heatingRelay, HIGH);
+          digitalWrite(bypassRelay, LOW);
+          break;
+        */
       }
     case 8: {                             // Liv-controlled cooling
         controlMode = 1;
@@ -279,16 +305,18 @@ BLYNK_WRITE(V40) {
         break;
       }
     case 9: {                             // Liv-controlled heating
-        controlMode = 1;
-        controllingSpace = "LK";
-        coolingMode = 0;
-        controllingTemp = tempLK;
-        Blynk.setProperty(V39, "label", String("Setpoint: ") + setpointTemp + ". Controlled by LK (currently " + tempLK + "F).");
-        digitalWrite(fanRelay, HIGH);
-        digitalWrite(coolingRelay, HIGH);
-        digitalWrite(heatingRelay, HIGH);
-        digitalWrite(bypassRelay, LOW);
-        break;
+        /*
+          controlMode = 1;
+          controllingSpace = "LK";
+          coolingMode = 0;
+          controllingTemp = tempLK;
+          Blynk.setProperty(V39, "label", String("Setpoint: ") + setpointTemp + ". Controlled by LK (currently " + tempLK + "F).");
+          digitalWrite(fanRelay, HIGH);
+          digitalWrite(coolingRelay, HIGH);
+          digitalWrite(heatingRelay, HIGH);
+          digitalWrite(bypassRelay, LOW);
+          break;
+        */
       }
     default: {
         break;
@@ -365,8 +393,9 @@ void safetyShutoff() {
 }
 
 void tempUpdater() {
-  Blynk.syncVirtual(V4);
-  Blynk.syncVirtual(V6);
+  Blynk.syncVirtual(V3);  // AT
+  Blynk.syncVirtual(V4);  // KK
+  Blynk.syncVirtual(V6);  // LK
 
   if (controllingSpace == "KK")
   {
@@ -378,6 +407,15 @@ void tempUpdater() {
     controllingTemp = tempLK;
     Blynk.setProperty(V39, "label", String("Setpoint: ") + setpointTemp + "F. Controlled by LK (currently " + tempLK + "F).");
   }
+  else if (controllingSpace == "AT")
+  {
+    controllingTemp = tempAT;
+    Blynk.setProperty(V39, "label", String("Setpoint: ") + setpointTemp + "F. Controlled by AT (currently " + tempAT + "F).");
+  }
+}
+
+BLYNK_WRITE(V3) {
+  tempAT = param.asInt();
 }
 
 BLYNK_WRITE(V4) {
@@ -649,7 +687,7 @@ void sendTemps()
   {
     Blynk.virtualWrite(0, "ERR");       // ...there's an error, then display ERR, otherwise...
   }
-  else{
+  else {
     Blynk.virtualWrite(0, "OFF");       // ...display OFF.
   }
 

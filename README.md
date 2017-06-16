@@ -13,7 +13,7 @@ Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I
    * Because of [this issue](https://github.com/sparkfun/phant/issues/200):
      * Run `sudo git clone https://github.com/stoto/phant.git` to download fixed files (thanks [stoto](https://github.com/stoto)!)
      * Run `gksudo pcmanfm` to open file manager as root, allowing for drag and drop.
-     * Copy/overwrite the content of stoto's `/phant/lib` into `/usr/local/lib/node_modules/phant/lib`.
+     * Copy/overwrite the content of stoto's `/phant/lib` into `/usr/lib/node_modules/phant/lib`.
      * Run `phant`.
      * Tweak pages at '/usr/lib/node_modules/phant/node_modules/phant-manager-http/views'.
  * All data that needs to survive a hardware reset is stored to Blynk virtual pins, then synced back after a reset.

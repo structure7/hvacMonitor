@@ -18,7 +18,7 @@ DeviceAddress ds18b20SA = { 0x28, 0xF1, 0xAC, 0x1E, 0x00, 0x00, 0x80, 0xE8 }; //
 
 char auth[] = "fromBlynkApp";
 char ssid[] = "ssid";
-char pass[] = "ssid";
+char pass[] = "pw";
 
 SimpleTimer timer;
 WidgetRTC rtc;
@@ -65,6 +65,8 @@ int triggerTemp = 1;  // The number of degrees above/below setpoint that the HVA
 int tempDiff = 1;     // Temperature differential. You can add 1 to whatever is here because of the way the code compared a double and an int.
 bool coolingMode, heatingMode;  // True when cooling or heating is on
 int i, maxT, highRoom;    // Used to evaluate all room temperatures in whole-house cooling mode
+
+bool overrunFlag;
 
 void setup()
 {
@@ -143,7 +145,7 @@ void loop()  // To keep Blynk happy, keep most tasks out of the loop.
   timer.run();
   ArduinoOTA.handle();
 
-  if (startupSynced == false && year() != 1970) {
+  if (!startupSynced && year() != 1970) {
     startupSynced = true;
     startupSync();
     todaysDate = day();
@@ -231,7 +233,7 @@ void tempWatcher() {
   for (i = 0; i < 5; i++) {         // If 0 skip, then look at tempAT and other rooms.
     if (tempArray[i] > maxT) {      // Compare each room to maxT and if higher,
       maxT = tempArray[i];          // store that room's temp as maxT.
-      if (coolingMode == false) {   // Now if cooling is off,
+      if (!coolingMode) {           // Now if cooling is off,
         highRoom = i;               // set the index number (i) as the high room. This will setup this particular room as the target to cool (control watches this room to determine when to turn off).
       }
     }
@@ -255,32 +257,37 @@ void tempWatcher() {
     highRoomName = "MK";
   }
 
-  if (controllingRoom == 1 && coolingMode == false && setpointTemp != 0 && ( tempArray[highRoom] >= setpointTemp + triggerTemp) ) {
+  if (controllingRoom == 1 && !coolingMode && setpointTemp != 0 && ( tempArray[highRoom] >= setpointTemp + triggerTemp) ) {
     /*DEBUG*/Serial.println(String("[") + currentTime + "] Cooling started by " + highRoomName + " when it reached " + tempArray[highRoom] + "F. Shuts off at " + (setpointTemp - tempDiff) + "F.");
     Blynk.setProperty(V16, "label", String("Status: Started by ") + highRoomName + " when it reached " + tempArray[highRoom] + "F. Shuts off at " + (setpointTemp - tempDiff) + "F.") ;
     digitalWrite(coolingRelay, LOW);
     coolingMode = true;
   }
-  else if (controllingRoom == 1 && coolingMode == true && setpointTemp != 0 && ( tempArray[highRoom] <= setpointTemp - tempDiff) ) {
+  else if (controllingRoom == 1 && coolingMode && setpointTemp != 0 && ( tempArray[highRoom] <= setpointTemp - tempDiff) ) {
     /*DEBUG*/Serial.println(String("[") + currentTime + "] Cooling stopped by " + highRoomName + " b/c " + tempArray[highRoom] + " <= " + (setpointTemp - tempDiff));
     Blynk.setProperty(V16, "label", "Status:");
     digitalWrite(coolingRelay, HIGH);
     coolingMode = false;
+    overrunFlag = false;
   }
 
-  // SAFETY: Turn off HVAC is it runs over 1 hour
-  if (currentRunSec > 3600 && coolingMode == true) {
+  // SAFETY: Turn off HVAC it it runs over 2 hours
+  if (currentRunSec > 7200 && coolingMode) {
     shutdownHVACoverrun();
   }
 }
 
 void shutdownHVACoverrun() {
-  Blynk.setProperty(V16, "label", String("Status: ") + currentTime + " HVAC SHUTDOWN: Ran longer than 45 minutes.") ;
-  coolingMode = false;
-  Blynk.virtualWrite(V40, "pick", 2);
-  Blynk.virtualWrite(V40, 2);
-  Blynk.syncVirtual(V40);
-  Blynk.notify(String(currentTime) + " HVAC SHUTDOWN: Ran longer than 60 minutes. Now on fan-only.");
+  //Blynk.setProperty(V16, "label", String("Status: ") + currentTime + " HVAC SHUTDOWN: Ran longer than 3 hours.") ;
+  //coolingMode = false;
+  //Blynk.virtualWrite(V40, "pick", 2);
+  //Blynk.virtualWrite(V40, 2);
+  //Blynk.syncVirtual(V40);
+  if (!overrunFlag) {
+    Blynk.notify(String(currentTime) + " WARNING: HVAC has run for 2 hours.");
+    overrunFlag = true;
+  }
+  
 }
 
 // Set which room is controlling HVAC via the app's menu
@@ -317,6 +324,7 @@ BLYNK_WRITE(V40) {
         /*DEBUG*/Serial.println(String("[") + currentTime + "] controllingRoom = 1 (whole-house)");
         timer.enable(tempWatcherTimer);
         /*DEBUG*/Serial.println(String("[") + currentTime + "] tempWatcherTimer enabled");
+        coolingMode = false;              // This sets up the unit to correctly watch room temps (seems reversed but it isn't)
         digitalWrite(fanRelay, HIGH);
         digitalWrite(coolingRelay, HIGH);
         digitalWrite(heatingRelay, HIGH);
@@ -412,16 +420,16 @@ void fanStatus() {
   }
 
   // Sets the start/end time and date when the blower starts or stops
-  if (digitalRead(blowerPin) == LOW && ( changeFlag == true || ranOnce == false) ) {  // If heating or cooling is running, and was previously off (or the WeMos just started up)
-    changeTimeDate = currentTimeDate;                                                // set start time,
-    changeFlag = false;                                                               // use a flag to keep this process from happening again ("locking" the time/date for display), and
-    ranOnce = true;                                                                   // indicate that ranOnce... ran... once!
+  if (digitalRead(blowerPin) == LOW && ( changeFlag || !ranOnce) ) {      // If heating or cooling is running, and was previously off (or the WeMos just started up)
+    changeTimeDate = currentTimeDate;                                     // set start time,
+    changeFlag = false;                                                   // use a flag to keep this process from happening again ("locking" the time/date for display), and
+    ranOnce = true;                                                       // indicate that ranOnce... ran... once!
   }
-  else if (digitalRead(blowerPin) == HIGH && changeFlag == false) {                   // If heating/cooling is off, and was previously off (or the WeMos just started up (no need for ranOnce as changeFlag is false at startup))
-    changeTimeDate = currentTimeDate;                                                // set end time and
-    changeFlag = true;                                                                // lock out this process with flag. Now,
+  else if (digitalRead(blowerPin) == HIGH && !changeFlag) {               // If heating/cooling is off, and was previously off (or the WeMos just started up (no need for ranOnce as changeFlag is false at startup))
+    changeTimeDate = currentTimeDate;                                     // set end time and
+    changeFlag = true;                                                    // lock out this process with flag. Now,
 
-    if (ranOnce == true) {                                                            // since I'm counting a run during an end event, I don't want a WeMos startup to register as a run, so I'm locking that out here, but
+    if (ranOnce) {                                                        // since I'm counting a run during an end event, I don't want a WeMos startup to register as a run, so I'm locking that out here, but
       ++todaysRuns;
     }
     else {
@@ -444,11 +452,11 @@ void tempDisplay() {
   tempRA = sensors.getTempF(ds18b20RA);
   tempSA = sensors.getTempF(ds18b20SA);
 
-  if (fanCooling == true || fanHeating == true) {
+  if (fanCooling || fanHeating) {
     Blynk.virtualWrite(V0, tempRA);          // Display temperatures in app
     Blynk.virtualWrite(V1, tempSA);
   }
-  else if (fanOnly == true) {
+  else if (fanOnly) {
     Blynk.virtualWrite(V0, "FAN");
     Blynk.virtualWrite(V1, "FAN");
   }
@@ -460,11 +468,11 @@ void tempDisplay() {
 
 void statusDisplay() {
   // Updates the primary "Status" display
-  if (fanCooling == true || fanHeating == true) {
+  if (fanCooling || fanHeating ) {
     currentStatus = String("HVAC ON since ") + changeTimeDate;  // I'm using this string because I need to sync this back after startup. I need to sync it because status is not static, it's refreshed at interval.
     Blynk.virtualWrite(V16, currentStatus);
   }
-  else if (fanCooling == false || fanHeating == false) {
+  else if (!fanCooling || !fanHeating) {
     currentStatus = String("HVAC OFF since ") + changeTimeDate;
     Blynk.virtualWrite(V16, currentStatus);
   }
@@ -538,7 +546,7 @@ void updateVpinData2() {
 
 
   // Counts minutes of cooling or heating to support the language used in the nightly tweet
-  if (fanCooling == true || fanHeating == true) {
+  if (fanCooling || fanHeating) {
     if (tempRA > tempSA) {
       ++coolingCounter;
     }
@@ -575,12 +583,14 @@ BLYNK_WRITE(V18) // Filter change mode
 
 BLYNK_WRITE(V26)  // Resets filter timer
 {
-  if ( (String("y") == param.asStr() || String("Y") == param.asStr()) && filterChangeMode == true ) {
+  if ( (String("y") == param.asStr() || String("Y") == param.asStr()) && filterChangeMode) {
     filterUseSec = 0;
     terminal.println(" "); terminal.println("Filter timer reset!"); terminal.println(" ");
     filterChangeMode = false;
+    int filterUseHr = filterUseSec / 3600;
+    Blynk.virtualWrite(V10, String(300 - filterUseHr) + " hours");
   }
-  else if ( (String("n") == param.asStr() || String("N") == param.asStr()) && filterChangeMode == true ) {
+  else if ( (String("n") == param.asStr() || String("N") == param.asStr()) && filterChangeMode) {
     terminal.println(" "); terminal.println("Filter change cancelled."); terminal.println(" ");
     filterChangeMode = false;
   }
@@ -608,7 +618,7 @@ BLYNK_WRITE(V27)  // App button to report uptime
     }
     else if (minDur > 120)
     {
-      terminal.print(String("HVAC: ") + hourDur + " hr/");
+      terminal.print(String("HVAC: ") + hourDur + " hrs/");
       terminal.print(WiFi.RSSI());
       terminal.print("/");
       terminal.println(WiFi.localIP());

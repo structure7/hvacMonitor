@@ -1,3 +1,5 @@
+Mid-2017 note: Did I disappear? No! Am I moving? Yes! Once I land again development will return.
+
 # hvacMonitor
 A small project to monitor and control my HVAC system. Designing a PCB now!<br>
 <p align="center"><img src="http://i.imgur.com/kOhaFHD.png"/></p>

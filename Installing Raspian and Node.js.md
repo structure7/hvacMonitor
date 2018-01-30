@@ -121,7 +121,7 @@ The “-y” option will automatically answer yes to the default questions which
 <br><img src="http://thisdavej.com/wp-content/uploads/2016/06/rdp2.png"><br>
 * Click the Connect button near the bottom of the dialog box.
 * You will then be prompted with the xrdp login screen:
-<br><img src="http://thisdavej.com/wp-content/uploads/2016/02/xrdpLogin.png"><br>
+<br><img src="http://thisdavej.com/wp-content/uploads/2016/02/xrdpLogin.png"><br>or it might look like this:<br><img src="https://i.imgur.com/XtaszYm.png">
 * Enter your credentials and log into the RasPi.
   * username: pi
   * password: raspberry (unless you changed it in the Raspberry Pi Configuration program earlier in the tutorial.)

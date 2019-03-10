@@ -1,9 +1,9 @@
-Early-2019 note: Still alive! Living in an apartment so not much home hacking to do. I shall return.
+Early-2019 note: Still alive! Living in an apartment so not much home hacking to do. I shall return. 
 
 # hvacMonitor
 A small project to monitor and control my HVAC system. Designed a PCB... need to get it critiqued!<br>
 <p align="center"><img src="http://i.imgur.com/kOhaFHD.png"/></p>
-Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I started out with an ESP-01 but, as always, I wanted more! [Check out this deisgn on EasyEDA](https://easyeda.com/structure7/hvacMonitor-f78f794869ee4170806198e02f070e90)
+Hardware is a WeMos D1 Mini, a few DS18B20 digital thermometers, and 4 relays. I started out with an ESP-01 but, as always, I wanted more! [Check out this design on EasyEDA](https://easyeda.com/structure7/hvacMonitor-f78f794869ee4170806198e02f070e90)
 
 ## Features
  * Arduino code running on a single [WeMos D1 Mini](http://www.wemos.cc).

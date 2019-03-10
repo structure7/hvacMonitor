@@ -40,7 +40,7 @@ Many thanks to all the library authors. I know nothing. They do.
 ## Pin Assignments
 HW Pin | GPIO† | Purpose 
 ------|-----|------
-A0 | A0 | Available (future current transformer).
+A0 | A0 | Available (todo: current transformer).
 D0 | 16 | Fan control relay (green wire††).
 D1 | 5  | Cooling control relay (yellow wire††).
 D2 | 4  | Heating control relay (white wire††).

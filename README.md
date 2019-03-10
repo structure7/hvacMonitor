@@ -1,4 +1,4 @@
-Mid-2017 note: Did I disappear? No! Am I moving? Yes! Once I land again development will return.
+Early-2019 note: Still alive! Living in an apartment so not much home hacking to do. I shall return.
 
 # hvacMonitor
 A small project to monitor and control my HVAC system. Designing a PCB now!<br>
